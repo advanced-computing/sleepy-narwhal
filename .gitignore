@@ -1,0 +1,9 @@
+.DS_Store
+.ipynb_checkpoints/
+_build/
+
+# virtual environments; not needed in Python 3.13+, as a .gitignore is added to that folder
+# https://docs.python.org/3/library/venv.html#cmdoption-venv-without-scm-ignore-files
+.venv/
+myenv/
+*.csv
