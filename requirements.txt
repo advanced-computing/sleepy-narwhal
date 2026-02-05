@@ -1,0 +1,13 @@
+ipykernel
+pandas
+openpyxl
+plotly
+jupyter-book==1.0.3
+lxml
+requests
+numpy
+scipy
+
+# needed for plotly
+nbformat
+statsmodels
