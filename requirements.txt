@@ -1,4 +1,5 @@
 ipykernel
+streamlit
 pandas
 openpyxl
 plotly
