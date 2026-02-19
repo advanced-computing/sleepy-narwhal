@@ -1,14 +1,4 @@
-ipykernel
-pandas
-openpyxl
-plotly
-jupyter-book==1.0.3
-lxml
-requests
-numpy
-scipy
 streamlit
-
-# needed for plotly
-nbformat
-statsmodels
+pandas
+plotly
+requests
