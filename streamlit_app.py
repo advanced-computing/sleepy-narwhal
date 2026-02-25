@@ -5,6 +5,8 @@ import plotly.express as px
 import requests
 import streamlit as st
 
+from data_utils import clean_inmate_race_data, filter_data_by_category
+
 # --- page setting ---
 st.set_page_config(page_title="NYC Public Safety Analysis", layout="wide")
 
@@ -34,34 +36,24 @@ with st.spinner("Loading Inmate Data..."):
     df_inmates = load_inmate_data()
 
 if not df_inmates.empty:
-    race_mapping = {
-        "BLACK": "Black",
-        "WHITE": "White",
-        "HISPANIC": "Hispanic",
-        "ASIAN": "Asian",
-        "OTHER": "Other",
-        "UNKNOWN": "Unknown",
-        "B": "Black",
-        "W": "White",
-        "H": "Hispanic",
-        "A": "Asian",
-        "I": "American Indian",
-        "O": "Other",
-    }
+    df_inmates = clean_inmate_race_data(df_inmates)
 
-    if "race" in df_inmates.columns:
-        df_inmates["race"] = df_inmates["race"].fillna("Unknown")
-
-        df_inmates["race"] = df_inmates["race"].replace(race_mapping)
-
-        custody_map = {"MIN": "Minimum", "MED": "Medium", "MAX": "Maximum"}
-        df_inmates["custody_level"] = df_inmates["custody_level"].replace(custody_map)
+    custody_map = {"MIN": "Minimum", "MED": "Medium", "MAX": "Maximum"}
+    df_inmates["custody_level"] = df_inmates["custody_level"].replace(custody_map)
 
     # --- plot ---
     st.subheader("Inmate Distribution by Race & Custody Level")
 
+    custody_options = ["All"] + list(df_inmates["custody_level"].unique())
+    selected_custody = st.selectbox("Filter by Custody Level:", custody_options)
+
+    if selected_custody != "All":
+        plot_df = filter_data_by_category(df_inmates, "custody_level", selected_custody)
+    else:
+        plot_df = df_inmates
+
     fig_inmates = px.histogram(
-        df_inmates,
+        plot_df,
         x="race",
         color="custody_level",
         barmode="group",
