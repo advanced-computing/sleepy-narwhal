@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from data_utils import find_col, clean_date, filter_by_date, count_by_category, count_over_time
 
 # Page config
 
@@ -21,17 +22,11 @@ def load_data():
 df = load_data()
 
 # Auto-detect important columns
-def find_col(keyword):
-    for col in df.columns:
-        if keyword in col:
-            return col
-    return None
-
-date_col = find_col("admitted_dt")
-custody_col = find_col("custody")
-gender_col = find_col("gender")
-age_col = find_col("age")
-mh_col = find_col("mental")  # mental health related
+date_col = find_col(df, "admitted_dt")
+custody_col = find_col(df, "custody")
+gender_col = find_col(df, "gender")
+age_col = find_col(df, "age")
+mh_col = find_col(df, "mental")
 
 if date_col is None:
     st.error("No date column found.")
@@ -39,8 +34,7 @@ if date_col is None:
     st.stop()
 
 # Convert date
-df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
-df = df.dropna(subset=[date_col])
+df = clean_date(df, date_col)
 
 # Sidebar filters
 st.sidebar.header("Filters")
@@ -55,10 +49,7 @@ date_range = st.sidebar.date_input(
     max_value=end_date
 )
 
-df_filtered = df[
-    (df[date_col] >= pd.to_datetime(date_range[0])) &
-    (df[date_col] <= pd.to_datetime(date_range[1]))
-]
+df_filtered = filter_by_date(df, date_col, date_range[0], date_range[1])
 
 # Metrics
 col1, col2 = st.columns(2)
@@ -70,12 +61,7 @@ st.divider()
 # Visualization 1: Total inmates over time
 st.subheader("Total Inmates Over Time")
 
-df_time = (
-    df_filtered
-    .groupby(pd.Grouper(key=date_col, freq="D"))
-    .size()
-    .reset_index(name="count")
-)
+df_time = count_over_time(df_filtered, date_col, freq="D")
 
 fig1 = px.line(
     df_time,
@@ -92,12 +78,7 @@ st.plotly_chart(fig1, use_container_width=True)
 if custody_col:
     st.subheader("Custody Level Distribution")
 
-    df_custody = (
-        df_filtered
-        .groupby(custody_col)
-        .size()
-        .reset_index(name="count")
-    )
+    df_custody = count_by_category(df_filtered, custody_col)
 
     fig2 = px.bar(
         df_custody,
@@ -113,12 +94,7 @@ if custody_col:
 if gender_col:
     st.subheader("Gender Distribution")
 
-    df_gender = (
-        df_filtered
-        .groupby(gender_col)
-        .size()
-        .reset_index(name="count")
-    )
+    df_gender = count_by_category(df_filtered, gender_col)
 
     fig3 = px.pie(
         df_gender,
@@ -148,12 +124,7 @@ if age_col:
 if mh_col:
     st.subheader("Mental Health Observation Status")
 
-    df_mh = (
-        df_filtered
-        .groupby(mh_col)
-        .size()
-        .reset_index(name="count")
-    )
+    df_mh = count_by_category(df_filtered, mh_col)
 
     fig5 = px.bar(
         df_mh,
