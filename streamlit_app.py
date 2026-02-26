@@ -1,141 +1,187 @@
-import streamlit as st
+import time
+
 import pandas as pd
 import plotly.express as px
-from data_utils import find_col, clean_date, filter_by_date, count_by_category, count_over_time
+import requests
+import streamlit as st
 
-# Page config
+from data_utils import clean_inmate_race_data, filter_data_by_category
 
-st.set_page_config(page_title="NYC Inmates Dashboard", layout="wide")
+# --- page setting ---
+st.set_page_config(page_title="NYC Public Safety Analysis", layout="wide")
 
-st.title("NYC Daily Inmates in Custody Dashboard")
-st.caption("Sleep-Narwhal | Team: Jing Bu, Gina Wang")
+st.title("NYC Public Safety: Inmates & Hate Crimes Analysis")
+st.markdown("### Team Members: Jinen Wang, Jing Bu")
+st.markdown("---")
 
-# Load data
+# ==========================================
+# PART 1: Daily Inmates
+# ==========================================
+
 
 @st.cache_data
-def load_data():
-    url = "https://data.cityofnewyork.us/api/views/7479-ugqb/rows.csv?accessType=DOWNLOAD"
-    df = pd.read_csv(url)
-    df.columns = df.columns.str.strip().str.lower()
-    return df
+def load_inmate_data():
+    # data import
+    url = "https://data.cityofnewyork.us/resource/7479-ugqb.json?$limit=2000"
+    try:
+        df = pd.read_json(url)
+        return df
+    except Exception as e:
+        st.error(f"Error loading inmate data: {e}")
+        return pd.DataFrame()
 
-df = load_data()
 
-# Auto-detect important columns
-date_col = find_col(df, "admitted_dt")
-custody_col = find_col(df, "custody")
-gender_col = find_col(df, "gender")
-age_col = find_col(df, "age")
-mh_col = find_col(df, "mental")
+st.header("Part 1: Daily Inmates In Custody")
+with st.spinner("Loading Inmate Data..."):
+    df_inmates = load_inmate_data()
 
-if date_col is None:
-    st.error("No date column found.")
-    st.write(df.columns)
-    st.stop()
+if not df_inmates.empty:
+    df_inmates = clean_inmate_race_data(df_inmates)
 
-# Convert date
-df = clean_date(df, date_col)
+    custody_map = {"MIN": "Minimum", "MED": "Medium", "MAX": "Maximum"}
+    df_inmates["custody_level"] = df_inmates["custody_level"].replace(custody_map)
 
-# Sidebar filters
-st.sidebar.header("Filters")
+    # --- plot ---
+    st.subheader("Inmate Distribution by Race & Custody Level")
 
-start_date = df[date_col].min().date()
-end_date = df[date_col].max().date()
+    custody_options = ["All"] + list(df_inmates["custody_level"].unique())
+    selected_custody = st.selectbox("Filter by Custody Level:", custody_options)
 
-date_range = st.sidebar.date_input(
-    "Date Range",
-    value=(start_date, end_date),
-    min_value=start_date,
-    max_value=end_date
+    if selected_custody != "All":
+        plot_df = filter_data_by_category(df_inmates, "custody_level", selected_custody)
+    else:
+        plot_df = df_inmates
+
+    fig_inmates = px.histogram(
+        plot_df,
+        x="race",
+        color="custody_level",
+        barmode="group",
+        title="Inmates by Race and Custody Level",
+        text_auto=True,
+        labels={
+            "race": "Race Category",
+            "custody_level": "Security Level",
+        },
+    )
+
+    # category_orders={"race": ["Black", "Hispanic", "White", "Asian", "Other", "Unknown"]}
+    # fig_inmates.update_layout(xaxis={'categoryorder':'array', 'categoryarray': category_orders['race']})
+
+    st.plotly_chart(fig_inmates, use_container_width=True)
+else:
+    st.warning("Failed to load Inmate data.")
+
+st.markdown("---")
+st.markdown("---")
+
+# ==========================================
+# TRANSITION: Connection between Datasets
+# ==========================================
+
+st.info("""
+While the Inmate dataset reveals the racial disparities within the correctional system, 
+the Hate Crimes dataset supplements this by visualizing the patterns of bias and victimization in the community, 
+together providing a comprehensive view of how race intersects with public safety in NYC.
+""")
+
+st.markdown("---")
+# ==========================================
+# PART 2: NYPD Hate Crimes
+# ==========================================
+
+
+@st.cache_data
+def load_hate_crimes_data():
+    base_url = "https://data.cityofnewyork.us/resource/bqiq-cu78.json"
+    all_records = []
+    limit = 1000
+    offset = 0
+
+    progress_text = "Loading Hate Crimes data... Please wait."
+    my_bar = st.progress(0, text=progress_text)
+
+    while True:
+        params = {"$limit": limit, "$offset": offset}
+        try:
+            response = requests.get(base_url, params=params)
+            response.raise_for_status()
+            data = response.json()
+
+            if not data:
+                break
+
+            all_records.extend(data)
+            offset += limit
+
+            progress = min(offset / 4500, 1.0)
+            my_bar.progress(progress, text=f"Loaded {len(all_records)} rows...")
+            time.sleep(0.1)
+
+        except Exception as e:
+            st.error(f"Error fetching data: {e}")
+            break
+
+    my_bar.empty()
+    return pd.DataFrame(all_records)
+
+
+st.header("Part 2: NYPD Hate Crimes Analysis")
+st.markdown(
+    "Dataset: [NYPD Hate Crimes](https://data.cityofnewyork.us/Public-Safety/NYPD-Hate-Crimes/bqiq-cu78)"
 )
 
-df_filtered = filter_by_date(df, date_col, date_range[0], date_range[1])
+with st.spinner("Fetching all Hate Crime records..."):
+    df_hate = load_hate_crimes_data()
 
-# Metrics
-col1, col2 = st.columns(2)
-col1.metric("Total Rows (Filtered)", f"{len(df_filtered):,}")
-col2.metric("Date Range", f"{date_range[0]} → {date_range[1]}")
+if not df_hate.empty:
+    with st.expander("Click to view raw Hate Crimes data"):
+        st.dataframe(df_hate.head(100))
+        st.write(f"Total Records Fetched: {len(df_hate)}")
 
-st.divider()
+    if "complaint_year_number" in df_hate.columns:
+        df_hate["complaint_year_number"] = pd.to_numeric(
+            df_hate["complaint_year_number"], errors="coerce"
+        )
+        df_hate = df_hate.sort_values("complaint_year_number")
 
-# Visualization 1: Total inmates over time
-st.subheader("Total Inmates Over Time")
+    # Chart A: Bias Motive
+    st.subheader("What drives Hate Crimes? (Bias Motive)")
 
-df_time = count_over_time(df_filtered, date_col, freq="D")
+    if "bias_motive_description" in df_hate.columns:
+        top_motives = (
+            df_hate["bias_motive_description"].value_counts().nlargest(10).index
+        )
+        df_top_motives = df_hate[df_hate["bias_motive_description"].isin(top_motives)]
 
-fig1 = px.line(
-    df_time,
-    x=date_col,
-    y="count",
-    labels={date_col: "Date", "count": "Inmate Count"}
-)
+        fig_bias = px.bar(
+            df_top_motives["bias_motive_description"].value_counts().reset_index(),
+            x="bias_motive_description",
+            y="count",
+            labels={
+                "bias_motive_description": "Bias Motive",
+                "count": "Number of Incidents",
+            },
+            title="Top 10 Bias Motives for Hate Crimes",
+            color="count",
+            color_continuous_scale="Reds",
+        )
+        st.plotly_chart(fig_bias, use_container_width=True)
 
-st.plotly_chart(fig1, use_container_width=True)
-
-
-# Visualization 2: Custody Level Distribution
-
-if custody_col:
-    st.subheader("Custody Level Distribution")
-
-    df_custody = count_by_category(df_filtered, custody_col)
-
-    fig2 = px.bar(
-        df_custody,
-        x=custody_col,
-        y="count",
-        labels={custody_col: "Custody Level", "count": "Count"}
+    # Chart B: Trends
+    st.subheader("Hate Crimes Trends over Years")
+    crime_by_year = (
+        df_hate.groupby("complaint_year_number").size().reset_index(name="counts")
     )
 
-    st.plotly_chart(fig2, use_container_width=True)
-
-# Visualization 3: Gender Distribution
-
-if gender_col:
-    st.subheader("Gender Distribution")
-
-    df_gender = count_by_category(df_filtered, gender_col)
-
-    fig3 = px.pie(
-        df_gender,
-        names=gender_col,
-        values="count"
+    fig_trend = px.line(
+        crime_by_year,
+        x="complaint_year_number",
+        y="counts",
+        markers=True,
+        title="Total Hate Crimes per Year",
     )
+    st.plotly_chart(fig_trend, use_container_width=True)
 
-    st.plotly_chart(fig3, use_container_width=True)
-
-
-# Visualization 4: Age Distribution
-
-if age_col:
-    st.subheader("Age Distribution")
-
-    fig4 = px.histogram(
-        df_filtered,
-        x=age_col,
-        nbins=20
-    )
-
-    st.plotly_chart(fig4, use_container_width=True)
-
-
-# Visualization 5: Mental Health (if available)
-
-if mh_col:
-    st.subheader("Mental Health Observation Status")
-
-    df_mh = count_by_category(df_filtered, mh_col)
-
-    fig5 = px.bar(
-        df_mh,
-        x=mh_col,
-        y="count"
-    )
-
-    st.plotly_chart(fig5, use_container_width=True)
-
-
-# Data preview
-
-with st.expander("Preview Data"):
-    st.dataframe(df_filtered.head(100))
+else:
+    st.error("Failed to load Hate Crimes data.")
