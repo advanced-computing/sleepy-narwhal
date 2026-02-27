@@ -1,13 +1,12 @@
-import pandera as pa
-from pandera import Column, DataFrameSchema, Check
-
+from pandera import Check, Column, DataFrameSchema
 
 INMATES_SCHEMA = DataFrameSchema(
     {
         "race": Column(str, nullable=True),
         "custody_level": Column(str, nullable=True),
     },
-    coerce=True, strict=False,
+    coerce=True,
+    strict=False,
 )
 
 HATE_CRIMES_SCHEMA = DataFrameSchema(

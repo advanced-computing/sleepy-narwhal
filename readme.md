@@ -15,7 +15,7 @@ The race column will be formatted as strings. Null values are acceptable and exp
 
 For the Hate Crimes dataset, we are assuming that:
 
-The complaint_year_number must be a valid integer between the years 2010 and 2030. We use coerce=True because the API might return years as string types instead of numeric types.
+The complaint_year_number must be a valid integer larger than 2019. We use coerce=True because the API might return years as string types instead of numeric types.
 
 The bias_motive_description column should consistently be of string type, allowing for empty/null values when the motive is unknown.
 
