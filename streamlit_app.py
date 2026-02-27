@@ -40,6 +40,13 @@ with st.spinner("Loading Inmate Data..."):
 if not df_inmates.empty:
     df_inmates = clean_inmate_race_data(df_inmates)
 
+    # validate
+    try:
+        df_inmates = validate_df(df_inmates, INMATES_SCHEMA, "inmates")
+    except ValueError as e:
+        st.error(str(e))
+        st.stop()
+
     custody_map = {"MIN": "Minimum", "MED": "Medium", "MAX": "Maximum"}
     df_inmates["custody_level"] = df_inmates["custody_level"].replace(custody_map)
 
@@ -145,6 +152,13 @@ with st.spinner("Fetching all Hate Crime records..."):
     df_hate = load_hate_crimes_data()
 
 if not df_hate.empty:
+    # validate
+    try:
+        df_hate = validate_df(df_hate, HATE_CRIMES_SCHEMA, "hate_crimes")
+    except ValueError as e:
+        st.error(str(e))
+        st.stop()
+
     with st.expander("Click to view raw Hate Crimes data"):
         st.dataframe(df_hate.head(100))
         st.write(f"Total Records Fetched: {len(df_hate)}")

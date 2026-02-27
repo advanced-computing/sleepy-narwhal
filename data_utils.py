@@ -26,3 +26,13 @@ def clean_inmate_race_data(df):
         df_cleaned["race"] = df_cleaned["race"].replace(race_mapping)
 
     return df_cleaned
+
+    import pandera as pa
+
+
+def validate_df(df, schema, df_name="dataframe"):
+    try:
+        return schema.validate(df, lazy=True)
+    except pa.errors.SchemaErrors as e:
+        raise ValueError(f"{df_name} schema validation failed:\n{e.failure_cases}") from e
+
