@@ -1,6 +1,3 @@
-import pandas as pd
-
-
 def filter_data_by_category(df, column_name, target_value):
     filtered_df = df[df[column_name] == target_value]
     return filtered_df

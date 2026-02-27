@@ -5,9 +5,7 @@ from data_utils import clean_inmate_race_data, filter_data_by_category
 
 def test_filter_data_by_category():
 
-    fake_data = pd.DataFrame(
-        {"Name": ["Alice", "Bob", "Charlie"], "Category": ["A", "B", "A"]}
-    )
+    fake_data = pd.DataFrame({"Name": ["Alice", "Bob", "Charlie"], "Category": ["A", "B", "A"]})
 
     result_df = filter_data_by_category(fake_data, "Category", "A")
 

@@ -149,9 +149,7 @@ if not df_hate.empty:
     st.subheader("What drives Hate Crimes? (Bias Motive)")
 
     if "bias_motive_description" in df_hate.columns:
-        top_motives = (
-            df_hate["bias_motive_description"].value_counts().nlargest(10).index
-        )
+        top_motives = df_hate["bias_motive_description"].value_counts().nlargest(10).index
         df_top_motives = df_hate[df_hate["bias_motive_description"].isin(top_motives)]
 
         fig_bias = px.bar(
@@ -170,9 +168,7 @@ if not df_hate.empty:
 
     # Chart B: Trends
     st.subheader("Hate Crimes Trends over Years")
-    crime_by_year = (
-        df_hate.groupby("complaint_year_number").size().reset_index(name="counts")
-    )
+    crime_by_year = df_hate.groupby("complaint_year_number").size().reset_index(name="counts")
 
     fig_trend = px.line(
         crime_by_year,
