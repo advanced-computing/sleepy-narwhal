@@ -4,3 +4,4 @@ plotly
 requests
 pytest-cov
 pytest
+ruff
