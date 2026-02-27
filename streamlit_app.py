@@ -66,7 +66,8 @@ if not df_inmates.empty:
     )
 
     # category_orders={"race": ["Black", "Hispanic", "White", "Asian", "Other", "Unknown"]}
-    # fig_inmates.update_layout(xaxis={'categoryorder':'array', 'categoryarray': category_orders['race']})
+    # fig_inmates.update_layout(xaxis={'categoryorder':'array',
+    # 'categoryarray': category_orders['race']})
 
     st.plotly_chart(fig_inmates, use_container_width=True)
 else:
@@ -80,9 +81,10 @@ st.markdown("---")
 # ==========================================
 
 st.info("""
-While the Inmate dataset reveals the racial disparities within the correctional system, 
-the Hate Crimes dataset supplements this by visualizing the patterns of bias and victimization in the community, 
-together providing a comprehensive view of how race intersects with public safety in NYC.
+While the Inmate dataset reveals the racial disparities within the correctional system,
+the Hate Crimes dataset supplements this by visualizing the patterns of bias and victimization
+in the community, together providing a comprehensive view of how race intersects with public
+safety in NYC.
 """)
 
 st.markdown("---")
@@ -149,9 +151,7 @@ if not df_hate.empty:
     st.subheader("What drives Hate Crimes? (Bias Motive)")
 
     if "bias_motive_description" in df_hate.columns:
-        top_motives = (
-            df_hate["bias_motive_description"].value_counts().nlargest(10).index
-        )
+        top_motives = df_hate["bias_motive_description"].value_counts().nlargest(10).index
         df_top_motives = df_hate[df_hate["bias_motive_description"].isin(top_motives)]
 
         fig_bias = px.bar(
@@ -170,9 +170,7 @@ if not df_hate.empty:
 
     # Chart B: Trends
     st.subheader("Hate Crimes Trends over Years")
-    crime_by_year = (
-        df_hate.groupby("complaint_year_number").size().reset_index(name="counts")
-    )
+    crime_by_year = df_hate.groupby("complaint_year_number").size().reset_index(name="counts")
 
     fig_trend = px.line(
         crime_by_year,

@@ -5,14 +5,13 @@ from data_utils import clean_inmate_race_data, filter_data_by_category
 
 def test_filter_data_by_category():
 
-    fake_data = pd.DataFrame(
-        {"Name": ["Alice", "Bob", "Charlie"], "Category": ["A", "B", "A"]}
-    )
+    fake_data = pd.DataFrame({"Name": ["Alice", "Bob", "Charlie"], "Category": ["A", "B", "A"]})
 
     result_df = filter_data_by_category(fake_data, "Category", "A")
 
-    assert len(result_df) == 2
-    assert "Bob" not in result_df["Name"].values
+    expected_rows = 2
+    assert len(result_df) == expected_rows
+    assert "Bob" not in result_df["Name"].to_numpy()
 
 
 def test_clean_inmate_race_data():
