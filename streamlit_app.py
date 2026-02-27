@@ -5,10 +5,8 @@ import plotly.express as px
 import requests
 import streamlit as st
 
-import pandera as pa
-from data_utils import clean_inmate_race_data, filter_data_by_category, validate_df
-from schemas import INMATES_SCHEMA, HATE_CRIMES_SCHEMA
-
+from data_utils import clean_inmate_race_data, filter_data_by_category
+from data_validation import hate_crimes_schema, inmates_schema
 
 # --- page setting ---
 st.set_page_config(page_title="NYC Public Safety Analysis", layout="wide")
@@ -28,6 +26,7 @@ def load_inmate_data():
     url = "https://data.cityofnewyork.us/resource/7479-ugqb.json?$limit=2000"
     try:
         df = pd.read_json(url)
+        df = inmates_schema.validate(df)
         return df
     except Exception as e:
         st.error(f"Error loading inmate data: {e}")
@@ -40,13 +39,6 @@ with st.spinner("Loading Inmate Data..."):
 
 if not df_inmates.empty:
     df_inmates = clean_inmate_race_data(df_inmates)
-
-    # validate
-    try:
-        df_inmates = validate_df(df_inmates, INMATES_SCHEMA, "inmates")
-    except ValueError as e:
-        st.error(str(e))
-        st.stop()
 
     custody_map = {"MIN": "Minimum", "MED": "Medium", "MAX": "Maximum"}
     df_inmates["custody_level"] = df_inmates["custody_level"].replace(custody_map)
@@ -135,7 +127,13 @@ def load_hate_crimes_data():
             break
 
     my_bar.empty()
-    return pd.DataFrame(all_records)
+    df = pd.DataFrame(all_records)
+
+    try:
+        df = hate_crimes_schema.validate(df)
+    except Exception as e:
+        st.warning(f"Data validation warning for Hate Crimes: {e}")
+    return df
 
 
 st.header("Part 2: NYPD Hate Crimes Analysis")
@@ -147,13 +145,6 @@ with st.spinner("Fetching all Hate Crime records..."):
     df_hate = load_hate_crimes_data()
 
 if not df_hate.empty:
-    # validate
-    try:
-        df_hate = validate_df(df_hate, HATE_CRIMES_SCHEMA, "hate_crimes")
-    except ValueError as e:
-        st.error(str(e))
-        st.stop()
-
     with st.expander("Click to view raw Hate Crimes data"):
         st.dataframe(df_hate.head(100))
         st.write(f"Total Records Fetched: {len(df_hate)}")
