@@ -2,7 +2,7 @@ streamlit
 pandas
 plotly
 requests
-pytest
 pytest-cov
-pandera
+pytest
 ruff
+pandera
