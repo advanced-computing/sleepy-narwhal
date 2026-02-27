@@ -6,6 +6,7 @@ import requests
 import streamlit as st
 
 from data_utils import clean_inmate_race_data, filter_data_by_category
+from data_validation import hate_crimes_schema, inmates_schema
 
 # --- page setting ---
 st.set_page_config(page_title="NYC Public Safety Analysis", layout="wide")
@@ -25,6 +26,7 @@ def load_inmate_data():
     url = "https://data.cityofnewyork.us/resource/7479-ugqb.json?$limit=2000"
     try:
         df = pd.read_json(url)
+        df = inmates_schema.validate(df)
         return df
     except Exception as e:
         st.error(f"Error loading inmate data: {e}")
@@ -125,7 +127,13 @@ def load_hate_crimes_data():
             break
 
     my_bar.empty()
-    return pd.DataFrame(all_records)
+    df = pd.DataFrame(all_records)
+
+    try:
+        df = hate_crimes_schema.validate(df)
+    except Exception as e:
+        st.warning(f"Data validation warning for Hate Crimes: {e}")
+    return df
 
 
 st.header("Part 2: NYPD Hate Crimes Analysis")
