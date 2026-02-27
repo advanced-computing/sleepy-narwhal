@@ -2,4 +2,5 @@ streamlit
 pandas
 plotly
 requests
+pytest-cov
 pytest
