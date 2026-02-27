@@ -66,7 +66,8 @@ if not df_inmates.empty:
     )
 
     # category_orders={"race": ["Black", "Hispanic", "White", "Asian", "Other", "Unknown"]}
-    # fig_inmates.update_layout(xaxis={'categoryorder':'array', 'categoryarray': category_orders['race']})
+    # fig_inmates.update_layout(xaxis={'categoryorder':'array',
+    # 'categoryarray': category_orders['race']})
 
     st.plotly_chart(fig_inmates, use_container_width=True)
 else:
@@ -80,9 +81,10 @@ st.markdown("---")
 # ==========================================
 
 st.info("""
-While the Inmate dataset reveals the racial disparities within the correctional system, 
-the Hate Crimes dataset supplements this by visualizing the patterns of bias and victimization in the community, 
-together providing a comprehensive view of how race intersects with public safety in NYC.
+While the Inmate dataset reveals the racial disparities within the correctional system,
+the Hate Crimes dataset supplements this by visualizing the patterns of bias and victimization
+in the community, together providing a comprehensive view of how race intersects with public
+safety in NYC.
 """)
 
 st.markdown("---")
