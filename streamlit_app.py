@@ -1,9 +1,10 @@
-import time
-
+# import time
 import pandas as pd
 import plotly.express as px
-import requests
+
+# import requests
 import streamlit as st
+from google.oauth2 import service_account
 
 from data_utils import clean_inmate_race_data, filter_data_by_category
 from data_validation import hate_crimes_schema, inmates_schema
@@ -110,16 +111,21 @@ with tab1:
 with tab2:
     st.header("Data Dashboard")
 
-    @st.cache_data
+    @st.cache_data(ttl=600)
     def load_inmate_data():
-        # data import
-        url = "https://data.cityofnewyork.us/resource/7479-ugqb.json?$limit=2000"
         try:
-            df = pd.read_json(url)
-            df = inmates_schema.validate(df)
+            key_dict = st.secrets["gcp_service_account"]
+            credentials = service_account.Credentials.from_service_account_info(key_dict)
+            project_id = key_dict["project_id"]
+
+            query = f"SELECT * FROM `{project_id}.nyc_data.daily_inmates`"
+
+            df = pd.read_gbq(query, project_id=project_id, credentials=credentials)
+            if "inmates_schema" in globals():
+                df = inmates_schema.validate(df)
             return df
         except Exception as e:
-            st.error(f"Error loading inmate data: {e}")
+            st.error(f"Fail to fetch Inmate data from BigQuery: {e}")
             return pd.DataFrame()
 
     st.header("Part 1: Daily Inmates In Custody")
@@ -204,45 +210,25 @@ with tab2:
     # PART 2: NYPD Hate Crimes
     # ==========================================
 
-    @st.cache_data
+    @st.cache_data(ttl=600)
     def load_hate_crimes_data():
-        base_url = "https://data.cityofnewyork.us/resource/bqiq-cu78.json"
-        all_records = []
-        limit = 1000
-        offset = 0
-
-        progress_text = "Loading Hate Crimes data... Please wait."
-        my_bar = st.progress(0, text=progress_text)
-
-        while True:
-            params = {"$limit": limit, "$offset": offset}
+        with st.spinner("Loading Hate Crimes data from BigQuery..."):
             try:
-                response = requests.get(base_url, params=params)
-                response.raise_for_status()
-                data = response.json()
+                key_dict = st.secrets["gcp_service_account"]
+                credentials = service_account.Credentials.from_service_account_info(key_dict)
+                project_id = key_dict["project_id"]
 
-                if not data:
-                    break
+                query = f"SELECT * FROM `{project_id}.nyc_data.hate_crimes`"
+                df = pd.read_gbq(query, project_id=project_id, credentials=credentials)
 
-                all_records.extend(data)
-                offset += limit
-
-                progress = min(offset / 4500, 1.0)
-                my_bar.progress(progress, text=f"Loaded {len(all_records)} rows...")
-                time.sleep(0.1)
-
+                try:
+                    df = hate_crimes_schema.validate(df)
+                except Exception as e:
+                    st.warning(f"Data validation warning for Hate Crimes: {e}")
+                return df
             except Exception as e:
-                st.error(f"Error fetching data: {e}")
-                break
-
-        my_bar.empty()
-        df = pd.DataFrame(all_records)
-
-        try:
-            df = hate_crimes_schema.validate(df)
-        except Exception as e:
-            st.warning(f"Data validation warning for Hate Crimes: {e}")
-        return df
+                st.error(f"Fail to fetch data from BigQuery: {e}")
+                return pd.DataFrame()
 
     st.header("Part 2: NYPD Hate Crimes Analysis")
     st.markdown(
