@@ -6,3 +6,5 @@ pytest-cov
 pytest
 ruff
 pandera
+pandas-gbq
+db-dtypes

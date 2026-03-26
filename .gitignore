@@ -8,3 +8,5 @@ _build/
 myenv/
 *.csv
 __pycache__
+.streamlit/secrets.toml
+*.json
