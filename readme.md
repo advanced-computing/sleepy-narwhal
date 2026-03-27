@@ -66,6 +66,30 @@ sleepy-narwhal/
 
 ---
 
+### 🔄 Data Ingestion Strategy
+
+#### Data Source 1: NYC Daily Inmates in Custody
+
+* **Loading method**: Batch loading (via CSV / API pull)
+* **Reason**:
+  The dataset is updated periodically (daily snapshots), and does not require real-time ingestion.
+  Batch processing ensures reproducibility for analysis and consistency across experiments.
+
+#### Data Source 2: Hate Crimes Dataset (Optional Extension)
+
+* **Loading method**: Batch loading
+* **Reason**:
+  This dataset is used for exploratory or extended analysis and does not require real-time updates.
+  It can be integrated as a static dataset for cross-domain insights.
+
+#### (Future Extension) Data Source 3: Real-time Correctional Events
+
+* **Loading method**: Streaming ingestion (e.g., API / message queue)
+* **Reason**:
+  If extended to a real-time dashboard, streaming data would enable live monitoring of inmate status, incidents, or facility-level changes.
+
+---
+
 ## ✅ Data Validation Assumptions
 
 We enforce schema validation using **Pandera**:
