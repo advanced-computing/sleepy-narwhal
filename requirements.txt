@@ -8,3 +8,4 @@ ruff
 pandera
 pandas-gbq
 db-dtypes
+google-cloud-bigquery
