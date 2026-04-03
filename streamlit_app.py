@@ -1,5 +1,6 @@
 # import time
 import pandas as pd
+import pandas_gbq
 import plotly.express as px
 
 # import requests
@@ -120,7 +121,7 @@ with tab2:
 
             query = f"SELECT * FROM `{project_id}.nyc_data.daily_inmates`"
 
-            df = pd.read_gbq(query, project_id=project_id, credentials=credentials)
+            df = pandas_gbq.read_gbq(query, project_id=project_id, credentials=credentials)
             if "inmates_schema" in globals():
                 df = inmates_schema.validate(df)
             return df
@@ -219,7 +220,7 @@ with tab2:
                 project_id = key_dict["project_id"]
 
                 query = f"SELECT * FROM `{project_id}.nyc_data.hate_crimes`"
-                df = pd.read_gbq(query, project_id=project_id, credentials=credentials)
+                df = pandas_gbq.read_gbq(query, project_id=project_id, credentials=credentials)
 
                 try:
                     df = hate_crimes_schema.validate(df)
