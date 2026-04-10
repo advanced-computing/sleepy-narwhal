@@ -42,7 +42,7 @@ def _bq_client() -> bigquery.Client:
 
 
 def _bq(query: str) -> pd.DataFrame:
-    return _bq_client().query(query).to_dataframe()
+    return _bq_client().query(query).to_dataframe(create_bqstorage_client=False)
 
 
 def _tbl(name: str) -> str:
