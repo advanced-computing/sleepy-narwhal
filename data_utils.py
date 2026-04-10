@@ -13,7 +13,9 @@ import datetime
 
 import numpy as np
 import pandas as pd
+import streamlit as st
 from google.cloud import bigquery
+from google.oauth2 import service_account
 
 # ==========================================
 # Config
@@ -22,9 +24,25 @@ PROJECT_ID = "sipa-adv-c-sleepy-narwhal"
 DATASET_ID = "credit_risk_data"
 
 
+def _bq_client() -> bigquery.Client:
+    """
+    Returns an authenticated BigQuery client.
+
+    On Streamlit Cloud: reads service account JSON from st.secrets["gcp_service_account"].
+    Locally: falls back to Application Default Credentials (gcloud auth).
+    """
+    if "gcp_service_account" in st.secrets:
+        credentials = service_account.Credentials.from_service_account_info(
+            st.secrets["gcp_service_account"],
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
+        return bigquery.Client(project=PROJECT_ID, credentials=credentials)
+    # local dev — uses gcloud auth application-default login
+    return bigquery.Client(project=PROJECT_ID)
+
+
 def _bq(query: str) -> pd.DataFrame:
-    client = bigquery.Client(project=PROJECT_ID)
-    return client.query(query).to_dataframe()
+    return _bq_client().query(query).to_dataframe()
 
 
 def _tbl(name: str) -> str:
