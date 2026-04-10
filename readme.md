@@ -1,210 +1,133 @@
-# 📊 Quant Analysis on NYC Daily Inmates in Custody
+# US Corporate Credit Risk Dashboard
 
-## 👥 Group Member: Jing Bu & Jinen Wang
-
-**Sleepy-Narwhal**
-
-
-
-## 🔍 Project Overview
-
-This project analyzes **New York City’s Daily Inmates in Custody dataset** to uncover patterns in:
-
-* Security classification disparities (MIN / MED / MAX)
-* Demographic differences (race, age)
-* The relationship between **mental health observation** and **infractions**
-
-We combine **data validation, statistical analysis, and interactive visualization** to provide insights into correctional system dynamics.
-
----
-
-## 🎯 Motivation
-
-Mass incarceration and correctional systems are deeply tied to issues of:
-
-* Social inequality
-* Mental health
-* Institutional bias
-
-This project aims to use **data-driven methods** to better understand these dynamics and provide a foundation for further research and policy discussions.
-
----
-
-## 🧱 Project Structure
+## Project structure
 
 ```
-sleepy-narwhal/
-│
-├── data_utils.py          # Data loading & preprocessing
-├── data_validation.py     # Pandera-based validation
-├── schemas.py             # Data schema definitions
-├── streamlit_app.py       # Interactive dashboard
-├── main.ipynb             # Main analysis notebook
-├── tests/                 # Unit tests
+dashboard/
+├── app.py                              # Home page (Streamlit entry point)
+├── data_load.py                        # BigQuery ingestion
+├── data_utils.py                       # All BQ queries + calculation functions
 ├── requirements.txt
-└── readme.md
+├── data/                               # Static CSVs
+│   ├── global_fi_outstanding.csv
+│   ├── us_fi_outstanding.csv
+│   ├── corp_issuance_monthly.csv
+│   ├── corp_issuance_annual.csv
+│   ├── moodys_default_rates.csv
+│   └── avg_cumulative_default_rates.csv
+└── pages/
+    ├── 1_market_overview.py
+    ├── 2_credit_ratings.py
+    └── 5_spreads_risk.py
 ```
 
----
+## Setup
 
-## ⚙️ Tech Stack
-
-* Python (pandas, numpy)
-* Pandera (data validation)
-* Streamlit (interactive app)
-* Plotly (visualizations)
-* Pytest (testing)
-
----
-
-## 📊 Data Source
-
-* NYC Open Data – Daily Inmates in Custody
-* (Optional) Hate Crimes dataset for extended analysis
-
-> Note: Data is assumed to follow specific formats (see validation assumptions below).
-
----
-
-### 🔄 Data Ingestion Strategy
-
-#### Data Source 1: NYC Daily Inmates in Custody
-
-* **Loading method**: Batch loading (via CSV / API pull)
-* **Reason**:
-  The dataset is updated periodically (daily snapshots), and does not require real-time ingestion.
-  Batch processing ensures reproducibility for analysis and consistency across experiments.
-
-#### Data Source 2: Hate Crimes Dataset (Optional Extension)
-
-* **Loading method**: Batch loading
-* **Reason**:
-  This dataset is used for exploratory or extended analysis and does not require real-time updates.
-  It can be integrated as a static dataset for cross-domain insights.
-
-#### (Future Extension) Data Source 3: Real-time Correctional Events
-
-* **Loading method**: Streaming ingestion (e.g., API / message queue)
-* **Reason**:
-  If extended to a real-time dashboard, streaming data would enable live monitoring of inmate status, incidents, or facility-level changes.
-
----
-
-## ✅ Data Validation Assumptions
-
-We enforce schema validation using **Pandera**:
-
-### Inmate Dataset
-
-* `custody_level`: must be one of `MIN`, `MED`, `MAX`
-* `race`: string (nullable allowed)
-
-### Hate Crimes Dataset
-
-* `complaint_year_number`: integer > 2019
-* `bias_motive_description`: string (nullable allowed)
-
-We use:
-
-```
-ignore_unknown_columns=True
-```
-
-to ensure robustness to API changes.
-
----
-
-## 🚀 How to Run
-
-### 1. Install dependencies
-
-```
+```bash
 pip install -r requirements.txt
-```
-
-### 2. Run analysis notebook
-
-Open:
-
-```
-main.ipynb
-```
-
-### 3. Launch Streamlit app
-
-```
-streamlit run streamlit_app.py
+cp .env.example .env          # fill in FRED_API_KEY and GCP_PROJECT_ID
+gcloud auth application-default login
+bq mk --dataset sipa-adv-c-sleepy-narwhal:credit_risk_data
+python data_load.py
+streamlit run app.py
 ```
 
 ---
 
-## 📈 Features
+## BigQuery tables
 
-* Data cleaning & validation pipeline
-* Descriptive statistics for inmate demographics
-* Interactive visualizations:
-
-  * Custody level distribution by race & age
-  * Mental health vs infractions analysis
-* Streamlit dashboard for exploration
+| Table | Source file / API | Frequency |
+|---|---|---|
+| `fred_daily_raw` | FRED API (13 OAS + yield series) | Daily — GitHub Actions |
+| `fred_quarterly_raw` | FRED API (5 Z.1 outstanding series) | Daily — GitHub Actions |
+| `static_global_fi` | `data/global_fi_outstanding.csv` | Annually (July) |
+| `static_us_fi_structure` | `data/us_fi_outstanding.csv` | Quarterly |
+| `static_corp_issuance_monthly` | `data/corp_issuance_monthly.csv` | Monthly |
+| `static_corp_issuance_annual` | `data/corp_issuance_annual.csv` | Annually |
+| `static_default_rates` | `data/moodys_default_rates.csv` | Annually (March) |
+| `static_avg_cumulative_default_rates` | `data/avg_cumulative_default_rates.csv` | Annually (March) |
 
 ---
 
-## 🧪 Testing
+## Static CSV formats
 
-Run tests with:
+| File | Source | URL | Columns | Notes |
+|---|---|---|---|---|
+| `global_fi_outstanding.csv` | SIFMA Fact Book Tab 1-09 | [sifma.org/fact-book](https://www.sifma.org/research/statistics/fact-book) | `year, us, eu, china, japan, uk, australia, canada, hk, singapore, switzerland, dm, em, total` | Values in $bn with thousand-separator commas — handled automatically |
+| `us_fi_outstanding.csv` | SIFMA US FI Statistics Tab 1 (Annual) | [sifma.org/us-fi-stats](https://www.sifma.org/research/statistics/us-fixed-income-securities-statistics) | Raw: `UST, MBS, Corporates, Munis, Agency, ABS, CP` → renamed on ingest | MBS and ABS are `n/a` from 2022 onward → stored as NaN, handled gracefully |
+| `corp_issuance_monthly.csv` | SIFMA Corp Bonds Tab 1 (Monthly) | [sifma.org/corp-bonds](https://www.sifma.org/research/statistics/us-corporate-bonds-statistics) | `date (YY-Mon), ig_issuance_bn, hy_issuance_bn` | Date `"25-Mar"` → parsed to `2025-03-01` automatically. Coverage: Mar 2025+ |
+| `corp_issuance_annual.csv` | SIFMA Corp Bonds Tab 1 (Annual) | [sifma.org/corp-bonds](https://www.sifma.org/research/statistics/us-corporate-bonds-statistics) | `year, ig_issuance_bn, hy_issuance_bn` | Coverage: 2015+. Values may have thousand-separator commas |
+| `moodys_default_rates.csv` | S&P Annual Default Study Table 1 | [PDF (public)](https://maalot.co.il/Publications/FTS20250331162126.pdf) | `year, sg_default_rate, ig_default_rate` | Annual rates 1981–2024. Despite the filename, source is S&P (not Moody's) |
+| `avg_cumulative_default_rates.csv` | S&P Annual Default Study Tables 7–8 | [PDF (public)](https://maalot.co.il/Publications/FTS20250331162126.pdf) | `rating, yr1, yr2, yr3, yr4, yr5, yr7, yr10, grade` | 1981–2024 issuer-weighted avg cumulative default rates by rating |
 
+---
+
+## FRED API series
+
+All pulled automatically by `data_load.py`. Free key: https://fred.stlouisfed.org/docs/api/api_key.html
+
+| Key | Series ID | Description | Section |
+|---|---|---|---|
+| `ig_oas` | `BAMLC0A0CM` | IG OAS — ICE BofA US Corporate Index | §5 |
+| `hy_oas` | `BAMLH0A0HYM2` | HY OAS — ICE BofA HY Master II | §5 |
+| `ig_yield` | `BAMLC0A0CMEY` | IG Effective Yield | §5 |
+| `hy_yield` | `BAMLH0A0HYM2EY` | HY Effective Yield | §5 |
+| `aaa_oas` | `BAMLC0A1CAAA` | AAA IG OAS | §2 |
+| `aa_oas` | `BAMLC0A2CAA` | AA IG OAS | §2 |
+| `a_oas` | `BAMLC0A3CA` | A IG OAS | §2 |
+| `bbb_oas` | `BAMLC0A4CBBB` | BBB IG OAS | §2 |
+| `bb_oas` | `BAMLH0A1HYBB` | BB HY OAS | §2 |
+| `b_oas` | `BAMLH0A2HYB` | B HY OAS | §2 |
+| `ccc_oas` | `BAMLH0A3HYC` | CCC & Lower HY OAS | §2 |
+| `baa_yield` | `BAA` | Moody's Baa Corporate Bond Yield | §5 |
+| `aaa_yield` | `AAA` | Moody's Aaa Corporate Bond Yield | §5 |
+| `corp_outstanding` | `NCBDBIQ027S` | Nonfinancial Corp Debt Securities ($mn) | §1 |
+| `tsy_outstanding` | `GFDEBTN` | Federal Debt: Total Public Debt ($mn) | §1 |
+| `muni_outstanding` | `SLGSDODNS` | State & Local Govt Debt Securities ($mn) | §1 |
+| `agency_outstanding` | `FGSDODNS` | Federal Govt Debt Securities incl Agency ($mn) | §1 |
+
+---
+
+## Streamlit secrets (deployed app)
+
+Settings → Secrets in Streamlit Community Cloud:
+
+```toml
+[gcp_service_account]
+type = "service_account"
+project_id = "sipa-adv-c-sleepy-narwhal"
+private_key_id = "..."
+private_key = "-----BEGIN RSA PRIVATE KEY-----\n..."
+client_email = "streamlit@sipa-adv-c-sleepy-narwhal.iam.gserviceaccount.com"
+client_id = "..."
 ```
-pytest
+
+---
+
+## GitHub Actions (daily auto-ingestion)
+
+Create `.github/workflows/data_load.yml`:
+
+```yaml
+name: Daily data ingestion
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install -r requirements.txt
+      - run: python data_load.py
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          GCP_PROJECT_ID: sipa-adv-c-sleepy-narwhal
+          GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.GCP_SA_KEY }}
 ```
 
----
-
-## 🤝 Contributing
-
-We welcome contributions!
-
-### You can help by:
-
-* Improving data validation rules
-* Adding new visualizations
-* Extending datasets (e.g., time trends, policy changes)
-* Refactoring code for better modularity
-* Enhancing the Streamlit UI
-
-### Steps:
-
-1. Fork the repo
-2. Create a new branch
-3. Make changes
-4. Submit a Pull Request
-
----
-
-## 🗺️ Roadmap
-
-* [ ] Add time-series analysis (trends over time)
-* [ ] Integrate more NYC datasets
-* [ ] Improve dashboard UX
-* [ ] Add regression / causal analysis
-* [ ] Deploy Streamlit app online
-
----
-
-## ⚠️ Disclaimer
-
-This project is for **educational and exploratory purposes only**.
-Interpretations should not be taken as definitive policy conclusions.
-
----
-
-## 📬 Contact
-
-Maintained by:
-
-* Jing Bu
-* Gina Wang
-
----
-
-⭐ If you find this project useful, feel free to star the repo!
+Add `FRED_API_KEY` and `GCP_SA_KEY` to GitHub → Settings → Secrets and variables → Actions.
