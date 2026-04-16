@@ -28,9 +28,10 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
+          pip install pytest pytest-cov
 
       - name: Run unit tests
-        run: pytest tests/ -v --cov=data_utils --cov-report=term-missing
+        run: pytest test_data_utils.py -v --cov=data_utils --cov-report=term-missing
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
