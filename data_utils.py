@@ -9,8 +9,6 @@ BigQuery read pattern:
   Use @st.cache_data(ttl=3600) at the call site in pages.
 """
 
-import datetime
-
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -100,7 +98,7 @@ def get_us_fi_structure_latest() -> dict:
     if df.empty:
         return {}
 
-    COLS = [
+    COLS = [  # noqa: N806
         "treasury_bn",
         "corporate_bn",
         "mbs_bn",
@@ -231,7 +229,7 @@ def get_rating_oas_history(
         ORDER BY date, series_key
     """
     long = _bq(q)
-    return long.pivot(index="date", columns="series_key", values="value").reset_index()
+    return long.pivot(index="date", columns="series_key", values="value").reset_index()  # noqa: PD010
 
 
 def get_ig_hy_oas_history(start_date: str = "2000-01-01") -> pd.DataFrame:
@@ -247,7 +245,7 @@ def get_ig_hy_oas_history(start_date: str = "2000-01-01") -> pd.DataFrame:
         ORDER BY date, series_key
     """
     long = _bq(q)
-    return long.pivot(index="date", columns="series_key", values="value").reset_index()
+    return long.pivot(index="date", columns="series_key", values="value").reset_index()  # noqa: PD010
 
 
 def get_moodys_defaults() -> pd.DataFrame:
@@ -304,7 +302,7 @@ def compute_rolling_vol(series: pd.Series, window: int = 30) -> pd.Series:
 def yoy_change(df: pd.DataFrame, col: str) -> float:
     """YoY % change for the most recent value vs same period last year."""
     df = df.dropna(subset=[col]).copy()
-    if len(df) < 2:
+    if len(df) < 2:  # noqa: PLR2004
         return np.nan
     latest = df.iloc[-1]
     one_yr_ago = df[df["date"] <= latest["date"] - pd.DateOffset(years=1)]
@@ -319,11 +317,11 @@ def regime_flag(percentile: float) -> tuple[str, str]:
     Returns (label, color_hex) based on spread percentile.
     Used for KPI badge coloring in Streamlit.
     """
-    if percentile >= 75:
+    if percentile >= 75:  # noqa: PLR2004
         return "Wide — stressed", "#A32D2D"
-    elif percentile >= 50:
+    elif percentile >= 50:  # noqa: PLR2004
         return "Above median", "#BA7517"
-    elif percentile >= 25:
+    elif percentile >= 25:  # noqa: PLR2004
         return "Below median", "#3B6D11"
     else:
         return "Tight — rich", "#185FA5"

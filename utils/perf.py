@@ -24,16 +24,16 @@ Usage
         ...page code...
 """
 
-import io
 import cProfile
+import io
 import pstats
 import time
 from contextlib import contextmanager
 
 import streamlit as st
 
-
 # ── Required context manager (Lab 10 spec) ────────────────────
+
 
 @contextmanager
 def display_load_time():
@@ -54,6 +54,7 @@ def display_load_time():
 
 
 # ── Optional profiling helper ─────────────────────────────────
+
 
 @contextmanager
 def profile_page(top_n: int = 20, sort_by: str = "cumulative"):

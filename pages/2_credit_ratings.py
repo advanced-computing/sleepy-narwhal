@@ -133,8 +133,8 @@ def _issuance():
 
 # ── Charts ────────────────────────────────────────────────────
 def chart_oas_by_rating(df):
-    ORDER = ["aaa_oas", "aa_oas", "a_oas", "bbb_oas", "bb_oas", "b_oas", "ccc_oas"]
-    LABELS = {
+    ORDER = ["aaa_oas", "aa_oas", "a_oas", "bbb_oas", "bb_oas", "b_oas", "ccc_oas"]  # noqa: N806
+    LABELS = {  # noqa: N806
         "aaa_oas": "AAA",
         "aa_oas": "AA",
         "a_oas": "A",
@@ -143,7 +143,7 @@ def chart_oas_by_rating(df):
         "b_oas": "B",
         "ccc_oas": "CCC",
     }
-    GRADE_COLORS = {
+    GRADE_COLORS = {  # noqa: N806
         "aaa_oas": "#1D9E75",
         "aa_oas": "#3B6D11",
         "a_oas": "#639922",
@@ -177,7 +177,7 @@ def chart_oas_by_rating(df):
 
 
 def chart_oas_history(df):
-    SERIES = {
+    SERIES = {  # noqa: N806
         "bbb_oas": ("BBB", "#BA7517"),
         "bb_oas": ("BB", "#E07B39"),
         "b_oas": ("B", "#D85A30"),
@@ -414,10 +414,7 @@ with _ctx:
         with col_hist:
             oas_hist = _oas_history()
             ig_hy = _ig_hy_history()
-            if not oas_hist.empty and not ig_hy.empty:
-                merged = oas_hist.merge(ig_hy[["date", "ig_oas", "hy_oas"]], on="date", how="left")
-            else:
-                merged = oas_hist
+            merged = oas_hist.merge(ig_hy[["date", "ig_oas", "hy_oas"]], on="date", how="left") if not oas_hist.empty and not ig_hy.empty else oas_hist
             st.markdown("**OAS history — key buckets (2000–present)**")
             st.plotly_chart(chart_oas_history(merged), use_container_width=True)
             st.markdown(

@@ -15,7 +15,6 @@ import pandas as pd
 import pytest
 
 from data_utils import (
-    compute_spread_percentile,
     compute_spread_zscore,
     regime_flag,
     yoy_change,
@@ -41,10 +40,14 @@ def trending_spread():
 
 @pytest.fixture
 def yoy_df():
-    """DataFrame with a 'value' column and dates exactly 2 years apart."""
+    """
+    DataFrame spanning two years.
+    Dates chosen so that 2024-01-02 - 1 year = 2023-01-02,
+    and 2023-01-02 is in the data (satisfies the <= filter in yoy_change).
+    """
     return pd.DataFrame(
         {
-            "date": pd.to_datetime(["2022-01-03", "2023-01-03", "2024-01-02"]),
+            "date": pd.to_datetime(["2022-01-02", "2023-01-02", "2024-01-02"]),
             "value": [100.0, 110.0, 132.0],
         }
     )
@@ -124,9 +127,10 @@ class TestYoyChange:
         assert result > 0
 
     def test_negative_growth_is_negative(self):
+        # 2024-01-02 - 1 year = 2023-01-02; use 2023-01-01 so it satisfies <=
         df = pd.DataFrame(
             {
-                "date": pd.to_datetime(["2023-01-03", "2024-01-02"]),
+                "date": pd.to_datetime(["2023-01-01", "2024-01-02"]),
                 "value": [200.0, 150.0],
             }
         )
@@ -169,10 +173,10 @@ class TestRegimeFlag:
 
     def test_returns_tuple_of_two_strings(self):
         result = regime_flag(50)
-        assert isinstance(result, tuple) and len(result) == 2
+        assert isinstance(result, tuple) and len(result) == 2  # noqa: PLR2004
         assert all(isinstance(x, str) for x in result)
 
     def test_color_is_valid_hex(self):
         for percentile in [0, 25, 50, 75, 100]:
             _, color = regime_flag(percentile)
-            assert color.startswith("#") and len(color) == 7, f"Color '{color}' is not a valid 7-char hex string"
+            assert color.startswith("#") and len(color) == 7, f"Color '{color}' is not a valid 7-char hex string"  # noqa: PLR2004
