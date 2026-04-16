@@ -6,7 +6,7 @@ source = ["examples/", "examples/flask/", "tests/"]
 ## ruff stuff ##
 # https://docs.astral.sh/ruff/settings/
 [tool.ruff]
-line-length = 100
+line-length = 200
 [tool.ruff.lint]
 # https://docs.astral.sh/ruff/rules/
 extend-select = [
