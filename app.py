@@ -105,30 +105,19 @@ with st.sidebar:
 
 # ── Home page ─────────────────────────────────────────────────
 st.title("US Corporate Credit Risk Dashboard")
-st.markdown(
-    "A live risk monitoring dashboard for the US public corporate bond market — "
-    "investment grade (IG) and high yield (HY). "
-    "Data ingested daily from FRED, updated quarterly from SIFMA."
-)
+st.markdown("A live risk monitoring dashboard for the US public corporate bond market — investment grade (IG) and high yield (HY). Data ingested daily from FRED, updated quarterly from SIFMA.")
 st.markdown("---")
 
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.markdown(
-        "**§1 Market overview**\n\nGlobal FI context, US market structure, corporate bond size & issuance."
-    )
+    st.markdown("**§1 Market overview**\n\nGlobal FI context, US market structure, corporate bond size & issuance.")
 with col2:
-    st.markdown(
-        "**§2 Corporate bond & credit ratings**\n\nIG/HY intro, rating system, OAS by rating, default rates."
-    )
+    st.markdown("**§2 Corporate bond & credit ratings**\n\nIG/HY intro, rating system, OAS by rating, default rates.")
 with col3:
-    st.markdown(
-        "**§5 Spreads & risk** *(coming soon)*\n\nOAS history, z-score, volatility, spread vs default overlay."
-    )
+    st.markdown("**§5 Spreads & risk** *(coming soon)*\n\nOAS history, z-score, volatility, spread vs default overlay.")
 
 st.markdown("---")
 st.markdown(
-    '<p style="font-size:11px;color:#888">Data: FRED API · SIFMA · S&P Global Ratings · '
-    "Auto-updated daily via GitHub Actions</p>",
+    '<p style="font-size:11px;color:#888">Data: FRED API · SIFMA · S&P Global Ratings · Auto-updated daily via GitHub Actions</p>',
     unsafe_allow_html=True,
 )
