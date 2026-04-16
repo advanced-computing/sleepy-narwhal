@@ -26,6 +26,7 @@ import pandas as pd
 import pandas_datareader.data as web
 from dotenv import load_dotenv
 from google.cloud import bigquery
+from google.oauth2 import service_account
 
 load_dotenv()
 
@@ -70,17 +71,9 @@ FRED_DAILY = {
 FRED_QUARTERLY = {
     # §1 US fixed income outstanding by asset class
     "tsy_outstanding": ("GFDEBTN", "Federal Debt: Total Public Debt ($mn)", "s1_outstanding"),
-    "corp_outstanding": (
-        "NCBDBIQ027S",
-        "Nonfinancial Corp Debt Securities ($mn)",
-        "s1_outstanding",
-    ),
+    "corp_outstanding": ("NCBDBIQ027S", "Nonfinancial Corp Debt Securities ($mn)", "s1_outstanding"),
     "muni_outstanding": ("SLGSDODNS", "State & Local Govt Debt Securities ($mn)", "s1_outstanding"),
-    "agency_outstanding": (
-        "FGSDODNS",
-        "Federal Govt Debt Securities incl Agency ($mn)",
-        "s1_outstanding",
-    ),
+    "agency_outstanding": ("FGSDODNS", "Federal Govt Debt Securities incl Agency ($mn)", "s1_outstanding"),
     # §2 Corporate debt for trend chart
     "corp_debt_total": ("BCNSDODNS", "Nonfinancial Corp Debt Securities+Loans ($mn)", "s2_corp"),
 }
@@ -90,7 +83,22 @@ FRED_QUARTERLY = {
 # ==========================================
 
 
-def bq_client():
+def bq_client() -> bigquery.Client:
+    """
+    Returns an authenticated BigQuery client.
+    - GitHub Actions: reads GCP_SA_KEY env var (JSON string injected by Actions secret).
+    - Local dev: falls back to Application Default Credentials (gcloud auth).
+    """
+    sa_json = os.environ.get("GCP_SA_KEY")
+    if sa_json:
+        import json
+
+        info = json.loads(sa_json)
+        credentials = service_account.Credentials.from_service_account_info(
+            info,
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
+        return bigquery.Client(project=PROJECT_ID, credentials=credentials)
     return bigquery.Client(project=PROJECT_ID)
 
 
@@ -133,11 +141,7 @@ def fetch_fred(series_map, start, end):
     raw.index.name = "date"
     raw.columns = keys  # rename fred ids → our keys
 
-    long = (
-        raw.reset_index()
-        .melt(id_vars="date", var_name="series_key", value_name="value")
-        .dropna(subset=["value"])
-    )
+    long = raw.reset_index().melt(id_vars="date", var_name="series_key", value_name="value").dropna(subset=["value"])
 
     long["fred_id"] = long["series_key"].map({k: v[0] for k, v in series_map.items()})
     long["description"] = long["series_key"].map({k: v[1] for k, v in series_map.items()})
@@ -274,12 +278,7 @@ def load_corp_issuance_monthly_csv():
     df = pd.read_csv(path, thousands=",", na_values=["", "n/a", "N/A", "-"])
     df["date"] = pd.to_datetime("20" + df["date"].astype(str).str.strip(), format="%Y-%b")
     df["loaded_at"] = datetime.datetime.utcnow()
-    log.info(
-        "Loaded corp_issuance_monthly: %d rows (%s -> %s)",
-        len(df),
-        df["date"].min().date(),
-        df["date"].max().date(),
-    )
+    log.info("Loaded corp_issuance_monthly: %d rows (%s -> %s)", len(df), df["date"].min().date(), df["date"].max().date())
     return df
 
 
@@ -299,12 +298,7 @@ def load_corp_issuance_annual_csv():
         return None
     df = pd.read_csv(path, thousands=",", na_values=["", "n/a", "N/A", "-"])
     df["loaded_at"] = datetime.datetime.utcnow()
-    log.info(
-        "Loaded corp_issuance_annual: %d rows (%d -> %d)",
-        len(df),
-        df["year"].min(),
-        df["year"].max(),
-    )
+    log.info("Loaded corp_issuance_annual: %d rows (%d -> %d)", len(df), df["year"].min(), df["year"].max())
     return df
 
 
