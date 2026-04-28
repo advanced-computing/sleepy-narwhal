@@ -58,7 +58,18 @@ def _rating_frame(latest: pd.DataFrame, history: pd.DataFrame) -> pd.DataFrame:
 def chart_oas_by_rating(df: pd.DataFrame) -> go.Figure:
     fig = go.Figure()
     fig.add_trace(go.Bar(x=df["five_year_avg"], y=df["rating"], orientation="h", name="5Y avg", marker_color="rgba(100,116,139,0.25)", hovertemplate="%{y} 5Y avg: %{x:.0f} bp<extra></extra>"))
-    fig.add_trace(go.Bar(x=df["value"], y=df["rating"], orientation="h", name="Current", marker_color=[RATING_COLORS[k] for k in df["series_key"]], text=[f"{v:.0f}" for v in df["value"]], textposition="outside", hovertemplate="%{y} current: %{x:.0f} bp<extra></extra>"))
+    fig.add_trace(
+        go.Bar(
+            x=df["value"],
+            y=df["rating"],
+            orientation="h",
+            name="Current",
+            marker_color=[RATING_COLORS[k] for k in df["series_key"]],
+            text=[f"{v:.0f}" for v in df["value"]],
+            textposition="outside",
+            hovertemplate="%{y} current: %{x:.0f} bp<extra></extra>",
+        )
+    )
     fig.update_layout(**PLOTLY_LAYOUT, barmode="overlay", height=330, xaxis_title="OAS (bp)", yaxis_title=None)
     fig.update_yaxes(autorange="reversed")
     return fig
@@ -80,7 +91,17 @@ def chart_risk_reward(oas_df: pd.DataFrame, dr_df: pd.DataFrame) -> go.Figure:
         slope, intercept = np.polyfit(x, y, 1)
         line_x = np.linspace(max(0, x.min() * 0.8), x.max() * 1.08, 80)
         fig.add_trace(go.Scatter(x=line_x, y=slope * line_x + intercept, mode="lines", name="Fair compensation line", line=dict(color="#64748b", dash="dash"), hoverinfo="skip"))
-        fig.add_trace(go.Scatter(x=pts["oas"], y=pts["dr"], mode="markers+text", text=pts["rating"], textposition="top center", marker=dict(size=15, color=[RATING_COLORS[k] for k in pts["key"]], line=dict(color="white", width=1)), hovertemplate="%{text}<br>OAS: %{x:.0f} bp<br>5Y default rate: %{y:.2f}%<extra></extra>"))
+        fig.add_trace(
+            go.Scatter(
+                x=pts["oas"],
+                y=pts["dr"],
+                mode="markers+text",
+                text=pts["rating"],
+                textposition="top center",
+                marker=dict(size=15, color=[RATING_COLORS[k] for k in pts["key"]], line=dict(color="white", width=1)),
+                hovertemplate="%{text}<br>OAS: %{x:.0f} bp<br>5Y default rate: %{y:.2f}%<extra></extra>",
+            )
+        )
         bbb = pts[pts["rating"] == "BBB"].iloc[0]
         bb = pts[pts["rating"] == "BB"].iloc[0]
         fig.add_shape(type="line", x0=bbb["oas"], y0=bbb["dr"], x1=bb["oas"], y1=bb["dr"], line=dict(color="#A32D2D", width=2, dash="dot"))
@@ -94,7 +115,9 @@ def chart_default_rates(df: pd.DataFrame, horizons: list[str]) -> go.Figure:
     colors = {"yr1": "#94a3b8", "yr3": "#64748b", "yr5": "#E07B39", "yr10": "#A32D2D"}
     labels = {"yr1": "1Y", "yr3": "3Y", "yr5": "5Y", "yr10": "10Y"}
     for horizon in horizons:
-        fig.add_trace(go.Bar(x=df["rating"], y=df[horizon], name=labels[horizon], marker_color=colors[horizon], text=[f"{v:.1f}%" for v in df[horizon]] if horizon == "yr5" else None, textposition="outside"))
+        fig.add_trace(
+            go.Bar(x=df["rating"], y=df[horizon], name=labels[horizon], marker_color=colors[horizon], text=[f"{v:.1f}%" for v in df[horizon]] if horizon == "yr5" else None, textposition="outside")
+        )
     fig.add_vline(x=3.5, line_dash="dash", line_color="#64748b", annotation_text="IG / HY", annotation_position="top right")
     fig.update_layout(**PLOTLY_LAYOUT, barmode="group", height=310, xaxis_title=None, yaxis_title="Cumulative default rate (%)")
     return fig
@@ -135,4 +158,7 @@ with display_load_time():
         render_rating_table()
 
     latest_date = pd.Timestamp(latest["date"].max()).strftime("%Y-%m-%d")
-    st.markdown(f'<p class="chart-caption"><span class="src-badge src-fred">FRED</span> ICE BofA rating OAS as of {latest_date}. <span class="src-badge src-static">S&P</span> 1981-2024 average cumulative default rates.</p>', unsafe_allow_html=True)
+    st.markdown(
+        f'<p class="chart-caption"><span class="src-badge src-fred">FRED</span> ICE BofA rating OAS as of {latest_date}. <span class="src-badge src-static">S&P</span> 1981-2024 average cumulative default rates.</p>',  # noqa: E501
+        unsafe_allow_html=True,
+    )

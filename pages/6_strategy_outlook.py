@@ -17,14 +17,12 @@ Data sources:
   get_rating_oas_latest()
 """
 
-import numpy as np
+import numpy as np  # noqa: F401
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from utils.style import inject_css, render_sidebar
 
 from data_utils import (
-    DEFAULT_RATES_5Y,
     compute_spread_percentile,
     compute_spread_zscore,
     get_avg_cumulative_default_rates,
@@ -33,6 +31,7 @@ from data_utils import (
     regime_flag,
 )
 from utils.perf import display_load_time
+from utils.style import inject_css, render_sidebar
 
 # ── CSS ───────────────────────────────────────────────────────
 # CSS injected via utils/style.py
@@ -207,7 +206,7 @@ def chart_risk_reward(oas_df, cum_dr_df):
 # ── Signal generation ─────────────────────────────────────────
 
 
-def generate_outlook(ig_z, hy_z, ig_pct, hy_pct, ig_oas, hy_oas, baa_aaa_spread=None):
+def generate_outlook(ig_z, hy_z, ig_pct, hy_pct, ig_oas, hy_oas, baa_aaa_spread=None):  # noqa: PLR0913
     """
     Rule-based outlook generator. Returns (headline, body, border_color, tags).
     """
@@ -252,7 +251,7 @@ def generate_outlook(ig_z, hy_z, ig_pct, hy_pct, ig_oas, hy_oas, baa_aaa_spread=
             "building liquidity buffers for potential spread widening."
         )
         border = "#185FA5"
-    elif hy_pct > 50 and ig_pct < 40:
+    elif hy_pct > 50 and ig_pct < 40:  # noqa: PLR2004
         headline = "IG-HY divergence — rotation opportunity"
         body = (
             "IG spreads are relatively tight while HY is wider than median. This "

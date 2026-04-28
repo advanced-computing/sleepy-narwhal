@@ -59,8 +59,26 @@ def chart_oas_history(df: pd.DataFrame, full_df: pd.DataFrame, recessions: pd.Da
     ten_year = full_df[full_df["date"] >= full_df["date"].max() - pd.DateOffset(years=10)]
     ig_med = ten_year["ig_oas"].median()
     hy_med = ten_year["hy_oas"].median()
-    fig.add_trace(go.Scatter(x=df["date"], y=df["ig_oas"], name="IG OAS", line=dict(color=IG_COLOR, width=1.8), customdata=np.stack([df["ig_z"], df["ig_pct"]], axis=-1), hovertemplate="%{x|%Y-%m-%d}<br>IG: %{y:.0f} bp<br>z: %{customdata[0]:+.2f}<br>%ile: %{customdata[1]:.0f}<extra></extra>"))
-    fig.add_trace(go.Scatter(x=df["date"], y=df["hy_oas"], name="HY OAS", line=dict(color=HY_COLOR, width=1.8), customdata=np.stack([df["hy_z"], df["hy_pct"]], axis=-1), hovertemplate="%{x|%Y-%m-%d}<br>HY: %{y:.0f} bp<br>z: %{customdata[0]:+.2f}<br>%ile: %{customdata[1]:.0f}<extra></extra>"))
+    fig.add_trace(
+        go.Scatter(
+            x=df["date"],
+            y=df["ig_oas"],
+            name="IG OAS",
+            line=dict(color=IG_COLOR, width=1.8),
+            customdata=np.stack([df["ig_z"], df["ig_pct"]], axis=-1),
+            hovertemplate="%{x|%Y-%m-%d}<br>IG: %{y:.0f} bp<br>z: %{customdata[0]:+.2f}<br>%ile: %{customdata[1]:.0f}<extra></extra>",
+        )
+    )  # noqa: E501
+    fig.add_trace(
+        go.Scatter(
+            x=df["date"],
+            y=df["hy_oas"],
+            name="HY OAS",
+            line=dict(color=HY_COLOR, width=1.8),
+            customdata=np.stack([df["hy_z"], df["hy_pct"]], axis=-1),
+            hovertemplate="%{x|%Y-%m-%d}<br>HY: %{y:.0f} bp<br>z: %{customdata[0]:+.2f}<br>%ile: %{customdata[1]:.0f}<extra></extra>",
+        )
+    )  # noqa: E501
     fig.add_hline(y=ig_med, line_dash="dash", line_color=IG_COLOR, opacity=0.55, annotation_text=f"IG 10Y median {ig_med:.0f}", annotation_position="bottom right")
     fig.add_hline(y=hy_med, line_dash="dash", line_color=HY_COLOR, opacity=0.55, annotation_text=f"HY 10Y median {hy_med:.0f}", annotation_position="top right")
     fig.update_layout(**PLOTLY_LAYOUT, height=390, yaxis_title="OAS (bp)")
@@ -118,13 +136,13 @@ with display_load_time():
         hy_pct = compute_spread_percentile(hy)
         ig_label, ig_color = regime_flag(ig_pct)
         hy_label, hy_color = regime_flag(hy_pct)
-        signal = "IG-HY divergence" if hy_pct > 50 and ig_pct < 40 else "Broad stress" if hy_pct >= 75 and ig_pct >= 75 else "Normal range"
+        signal = "IG-HY divergence" if hy_pct > 50 and ig_pct < 40 else "Broad stress" if hy_pct >= 75 and ig_pct >= 75 else "Normal range"  # noqa: PLR2004
         st.markdown(
             f'<div class="signal-card" style="border-left-color:{hy_color};">'
             f'<div class="signal-label" style="color:{hy_color};">REGIME SUMMARY</div>'
             f'<div class="signal-body"><b>IG regime:</b> {ig_label} ({ig_pct:.0f}th %ile)<br>'
-            f'<b>HY regime:</b> {hy_label} ({hy_pct:.0f}th %ile)<br>'
-            f'<b>Signal:</b> {signal}<br><br>'
+            f"<b>HY regime:</b> {hy_label} ({hy_pct:.0f}th %ile)<br>"
+            f"<b>Signal:</b> {signal}<br><br>"
             f'<span class="chart-caption">As of {pd.Timestamp(latest["date"]).strftime("%Y-%m-%d")}</span></div></div>',
             unsafe_allow_html=True,
         )

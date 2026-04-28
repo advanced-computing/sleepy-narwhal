@@ -363,7 +363,7 @@ def regime_flag(percentile: float) -> tuple[str, str]:
         return "Tight — rich", "#185FA5"
 
 
-def generate_outlook(
+def generate_outlook(  # noqa: PLR0913
     ig_z: float,
     hy_z: float,
     ig_pct: float,
@@ -391,33 +391,33 @@ def generate_outlook(
     if default_trend is not None and not np.isnan(default_trend):
         tags.append(f"SG defaults YoY: {default_trend:+.1f} pp")
 
-    quality_widening = baa_aaa_trend is not None and not np.isnan(baa_aaa_trend) and baa_aaa_trend > 0.15
-    default_worsening = default_trend is not None and not np.isnan(default_trend) and default_trend > 0.75
-    quality_improving = baa_aaa_trend is not None and not np.isnan(baa_aaa_trend) and baa_aaa_trend < -0.15
-    default_improving = default_trend is not None and not np.isnan(default_trend) and default_trend < -0.75
+    quality_widening = baa_aaa_trend is not None and not np.isnan(baa_aaa_trend) and baa_aaa_trend > 0.15  # noqa: PLR2004
+    default_worsening = default_trend is not None and not np.isnan(default_trend) and default_trend > 0.75  # noqa: PLR2004
+    quality_improving = baa_aaa_trend is not None and not np.isnan(baa_aaa_trend) and baa_aaa_trend < -0.15  # noqa: PLR2004
+    default_improving = default_trend is not None and not np.isnan(default_trend) and default_trend < -0.75  # noqa: PLR2004
 
-    if hy_z >= 1.5 and (quality_widening or default_worsening):
+    if hy_z >= 1.5 and (quality_widening or default_worsening):  # noqa: PLR2004
         return (
             "Defensive credit: spread stress is backed by macro deterioration",
-            "HY is cheapening versus its own history while lower-quality IG dispersion or realized defaults are moving the wrong way. Favor quality, reduce CCC risk, and keep liquidity for forced-selling opportunities.",
+            "HY is cheapening versus its own history while lower-quality IG dispersion or realized defaults are moving the wrong way. Favor quality, reduce CCC risk, and keep liquidity for forced-selling opportunities.",  # noqa: E501
             "#A32D2D",
             tags,
         )
-    if hy_z >= 1.5:
+    if hy_z >= 1.5:  # noqa: PLR2004
         return (
             "HY stress without full macro confirmation",
-            "HY spreads are elevated, but the macro confirmation is mixed. Treat weakness as selective rather than systemic: BB carry can be attractive, while weak single-B and CCC require tighter underwriting.",
+            "HY spreads are elevated, but the macro confirmation is mixed. Treat weakness as selective rather than systemic: BB carry can be attractive, while weak single-B and CCC require tighter underwriting.",  # noqa: E501
             "#BA7517",
             tags,
         )
-    if hy_z <= -1.5 and ig_z <= -1.0 and not default_worsening:
+    if hy_z <= -1.5 and ig_z <= -1.0 and not default_worsening:  # noqa: PLR2004
         return (
             "Credit looks rich: trim beta and wait for better entry",
             "Spreads are compressed across the stack and defaults are not forcing a risk premium. Avoid chasing incremental yield; prefer benchmark weight or up-in-quality positioning.",
             "#185FA5",
             tags,
         )
-    if hy_pct > 50 and ig_pct < 40:
+    if hy_pct > 50 and ig_pct < 40:  # noqa: PLR2004
         return (
             "IG-HY divergence: market is repricing credit quality",
             "IG remains tight while HY trades wider than median. This favors relative-value work around the BBB-BB boundary rather than a broad beta call.",
