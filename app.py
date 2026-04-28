@@ -118,7 +118,10 @@ c1.metric("IG OAS", f"{latest['ig_oas']:.0f} bp", f"{latest['ig_oas'] - prev['ig
 c2.metric("HY OAS", f"{latest['hy_oas']:.0f} bp", f"{latest['hy_oas'] - prev['hy_oas']:+.0f} bp")
 c3.metric("HY-IG", f"{latest['hy_oas'] - latest['ig_oas']:.0f} bp", f"{(latest['hy_oas'] - latest['ig_oas']) - (prev['hy_oas'] - prev['ig_oas']):+.0f} bp")
 c4.metric("HY z-score", f"{hy_z:+.2f}" if not np.isnan(hy_z) else "n/a")
-c5.markdown(f'<div class="signal-card" style="border-left-color:{regime_color};padding:10px 14px;"><div class="signal-label" style="color:{regime_color};">REGIME</div><div class="signal-title">{regime_label}</div><div class="signal-body">{hy_pct:.0f}th percentile vs 10Y</div></div>', unsafe_allow_html=True)
+c5.markdown(
+    f'<div class="signal-card" style="border-left-color:{regime_color};padding:10px 14px;"><div class="signal-label" style="color:{regime_color};">REGIME</div><div class="signal-title">{regime_label}</div><div class="signal-body">{hy_pct:.0f}th percentile vs 10Y</div></div>',  # noqa: E501
+    unsafe_allow_html=True,
+)
 
 left, right = st.columns([1.45, 1])
 with left:
