@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/sleepy-narwhal.png" alt="Sleepy Narwhal Advanced Computing" width="700">
+</p>
+
 # US Corporate Credit Risk Dashboard
 
 An interactive Streamlit dashboard for monitoring US corporate credit risk across investment-grade (IG) and high-yield (HY) markets. The app is designed for students learning credit analysis and for junior credit analysts who need a fast, structured way to answer:
