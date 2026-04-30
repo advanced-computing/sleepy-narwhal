@@ -300,9 +300,7 @@ def render_sidebar() -> None:
         st.markdown(
             """
             <div class="sidebar-product-card">
-              <div class="sidebar-eyebrow">Credit Market Intelligence</div>
-              <div class="sidebar-title">Credit Intelligence</div>
-              <div class="sidebar-copy">Monitor spreads, regimes, default pressure, and supply signals across US corporate credit.</div>
+              <div class="sidebar-title">Credit Market Dashboard 📈</div>
             </div>
             <div class="module-label">Module</div>
             """,

@@ -20,6 +20,17 @@ from google.oauth2 import service_account
 # ==========================================
 PROJECT_ID = "sipa-adv-c-sleepy-narwhal"
 DATASET_ID = "credit_risk_data"
+OAS_SERIES_KEYS = {
+    "ig_oas",
+    "hy_oas",
+    "aaa_oas",
+    "aa_oas",
+    "a_oas",
+    "bbb_oas",
+    "bb_oas",
+    "b_oas",
+    "ccc_oas",
+}
 
 
 def _bq_client() -> bigquery.Client:
@@ -45,6 +56,41 @@ def _bq(query: str) -> pd.DataFrame:
 
 def _tbl(name: str) -> str:
     return f"`{PROJECT_ID}.{DATASET_ID}.{name}`"
+
+
+def clean_oas_to_basis_points(
+    df: pd.DataFrame,
+    columns: list[str] | None = None,
+    value_col: str = "value",
+    series_col: str = "series_key",
+) -> pd.DataFrame:
+    """
+    Convert FRED OAS values from percentage points to basis points.
+
+    FRED ICE BofA OAS series are stored as percentages / percentage points
+    (for example, 0.81 means 81 bp). The dashboard labels OAS in bp, so this
+    normalizes OAS columns before charts and metrics use them.
+
+    The conversion is guarded by a simple magnitude check to avoid multiplying
+    values that have already been converted to bp.
+    """
+    out = df.copy()
+
+    def _needs_bp_conversion(series: pd.Series) -> bool:
+        clean = pd.to_numeric(series, errors="coerce").dropna()
+        return not clean.empty and clean.abs().median() < 25
+
+    if series_col in out.columns and value_col in out.columns:
+        mask = out[series_col].isin(OAS_SERIES_KEYS)
+        if mask.any() and _needs_bp_conversion(out.loc[mask, value_col]):
+            out.loc[mask, value_col] = pd.to_numeric(out.loc[mask, value_col], errors="coerce") * 100
+        return out
+
+    oas_columns = columns or [c for c in out.columns if c in OAS_SERIES_KEYS]
+    for col in oas_columns:
+        if col in out.columns and _needs_bp_conversion(out[col]):
+            out[col] = pd.to_numeric(out[col], errors="coerce") * 100
+    return out
 
 
 # ==========================================
@@ -201,7 +247,7 @@ def get_rating_oas_latest() -> pd.DataFrame:
         FROM ranked WHERE rn = 1
         ORDER BY value
     """
-    return _bq(q)
+    return clean_oas_to_basis_points(_bq(q))
 
 
 def get_rating_oas_history(
@@ -229,6 +275,7 @@ def get_rating_oas_history(
         ORDER BY date, series_key
     """
     long = _bq(q)
+    long = clean_oas_to_basis_points(long)
     return long.pivot(index="date", columns="series_key", values="value").reset_index()  # noqa: PD010
 
 
@@ -245,6 +292,7 @@ def get_ig_hy_oas_history(start_date: str = "2000-01-01") -> pd.DataFrame:
         ORDER BY date, series_key
     """
     long = _bq(q)
+    long = clean_oas_to_basis_points(long)
     return long.pivot(index="date", columns="series_key", values="value").reset_index()  # noqa: PD010
 
 
