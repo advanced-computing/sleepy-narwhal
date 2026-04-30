@@ -20,6 +20,17 @@ from google.oauth2 import service_account
 # ==========================================
 PROJECT_ID = "sipa-adv-c-sleepy-narwhal"
 DATASET_ID = "credit_risk_data"
+OAS_SERIES_KEYS = {
+    "ig_oas",
+    "hy_oas",
+    "aaa_oas",
+    "aa_oas",
+    "a_oas",
+    "bbb_oas",
+    "bb_oas",
+    "b_oas",
+    "ccc_oas",
+}
 
 
 def _bq_client() -> bigquery.Client:
@@ -45,6 +56,41 @@ def _bq(query: str) -> pd.DataFrame:
 
 def _tbl(name: str) -> str:
     return f"`{PROJECT_ID}.{DATASET_ID}.{name}`"
+
+
+def clean_oas_to_basis_points(
+    df: pd.DataFrame,
+    columns: list[str] | None = None,
+    value_col: str = "value",
+    series_col: str = "series_key",
+) -> pd.DataFrame:
+    """
+    Convert FRED OAS values from percentage points to basis points.
+
+    FRED ICE BofA OAS series are stored as percentages / percentage points
+    (for example, 0.81 means 81 bp). The dashboard labels OAS in bp, so this
+    normalizes OAS columns before charts and metrics use them.
+
+    The conversion is guarded by a simple magnitude check to avoid multiplying
+    values that have already been converted to bp.
+    """
+    out = df.copy()
+
+    def _needs_bp_conversion(series: pd.Series) -> bool:
+        clean = pd.to_numeric(series, errors="coerce").dropna()
+        return not clean.empty and clean.abs().median() < 25  # noqa: PLR2004
+
+    if series_col in out.columns and value_col in out.columns:
+        mask = out[series_col].isin(OAS_SERIES_KEYS)
+        if mask.any() and _needs_bp_conversion(out.loc[mask, value_col]):
+            out.loc[mask, value_col] = pd.to_numeric(out.loc[mask, value_col], errors="coerce") * 100
+        return out
+
+    oas_columns = columns or [c for c in out.columns if c in OAS_SERIES_KEYS]
+    for col in oas_columns:
+        if col in out.columns and _needs_bp_conversion(out[col]):
+            out[col] = pd.to_numeric(out[col], errors="coerce") * 100
+    return out
 
 
 # ==========================================
@@ -201,7 +247,7 @@ def get_rating_oas_latest() -> pd.DataFrame:
         FROM ranked WHERE rn = 1
         ORDER BY value
     """
-    return _bq(q)
+    return clean_oas_to_basis_points(_bq(q))
 
 
 def get_rating_oas_history(
@@ -229,6 +275,7 @@ def get_rating_oas_history(
         ORDER BY date, series_key
     """
     long = _bq(q)
+    long = clean_oas_to_basis_points(long)
     return long.pivot(index="date", columns="series_key", values="value").reset_index()  # noqa: PD010
 
 
@@ -245,7 +292,44 @@ def get_ig_hy_oas_history(start_date: str = "2000-01-01") -> pd.DataFrame:
         ORDER BY date, series_key
     """
     long = _bq(q)
+    long = clean_oas_to_basis_points(long)
     return long.pivot(index="date", columns="series_key", values="value").reset_index()  # noqa: PD010
+
+
+def get_baa_aaa_yield_history(start_date: str = "2000-01-01") -> pd.DataFrame:
+    """
+    Moody's Baa and Aaa corporate yield history from FRED.
+    Returns: [date, baa_yield, aaa_yield, baa_aaa_spread]
+    """
+    q = f"""
+        SELECT date, series_key, value
+        FROM {_tbl("fred_daily_raw")}
+        WHERE series_key IN ('baa_yield', 'aaa_yield')
+          AND date >= '{start_date}'
+        ORDER BY date, series_key
+    """
+    long = _bq(q)
+    if long.empty:
+        return pd.DataFrame()
+    df = long.pivot(index="date", columns="series_key", values="value").reset_index()  # noqa: PD010
+    if {"baa_yield", "aaa_yield"}.issubset(df.columns):
+        df["baa_aaa_spread"] = df["baa_yield"] - df["aaa_yield"]
+    return df
+
+
+def get_recession_periods() -> pd.DataFrame:
+    """
+    NBER US recession periods covering dashboard data since 2000.
+    Static because these are cycle chronology dates, not market data.
+    """
+    return pd.DataFrame(
+        [
+            ("2001-03-01", "2001-11-30"),
+            ("2007-12-01", "2009-06-30"),
+            ("2020-02-01", "2020-04-30"),
+        ],
+        columns=["start", "end"],
+    ).assign(start=lambda x: pd.to_datetime(x["start"]), end=lambda x: pd.to_datetime(x["end"]))
 
 
 def get_moodys_defaults() -> pd.DataFrame:
@@ -325,6 +409,82 @@ def regime_flag(percentile: float) -> tuple[str, str]:
         return "Below median", "#3B6D11"
     else:
         return "Tight — rich", "#185FA5"
+
+
+def generate_outlook(  # noqa: PLR0913
+    ig_z: float,
+    hy_z: float,
+    ig_pct: float,
+    hy_pct: float,
+    ig_oas: float,
+    hy_oas: float,
+    baa_aaa_trend: float | None = None,
+    default_trend: float | None = None,
+) -> tuple[str, str, str, list[str]]:
+    """
+    Rule-based market signal from valuation, quality dispersion, and default trend.
+    Returns (headline, body, border_color, tags).
+    """
+    ig_label, _ = regime_flag(ig_pct)
+    hy_label, _ = regime_flag(hy_pct)
+    tags = [
+        f"IG: {ig_label}",
+        f"HY: {hy_label}",
+        f"IG z: {ig_z:+.1f}",
+        f"HY z: {hy_z:+.1f}",
+        f"HY-IG: {hy_oas - ig_oas:.0f} bp",
+    ]
+    if baa_aaa_trend is not None and not np.isnan(baa_aaa_trend):
+        tags.append(f"Baa-Aaa 3m: {baa_aaa_trend:+.2f} pp")
+    if default_trend is not None and not np.isnan(default_trend):
+        tags.append(f"SG defaults YoY: {default_trend:+.1f} pp")
+
+    quality_widening = baa_aaa_trend is not None and not np.isnan(baa_aaa_trend) and baa_aaa_trend > 0.15  # noqa: PLR2004
+    default_worsening = default_trend is not None and not np.isnan(default_trend) and default_trend > 0.75  # noqa: PLR2004
+    quality_improving = baa_aaa_trend is not None and not np.isnan(baa_aaa_trend) and baa_aaa_trend < -0.15  # noqa: PLR2004
+    default_improving = default_trend is not None and not np.isnan(default_trend) and default_trend < -0.75  # noqa: PLR2004
+
+    if hy_z >= 1.5 and (quality_widening or default_worsening):  # noqa: PLR2004
+        return (
+            "Defensive credit: spread stress is backed by macro deterioration",
+            "HY is cheapening versus its own history while lower-quality IG dispersion or realized defaults are moving the wrong way. Favor quality, reduce CCC risk, and keep liquidity for forced-selling opportunities.",  # noqa: E501
+            "#A32D2D",
+            tags,
+        )
+    if hy_z >= 1.5:  # noqa: PLR2004
+        return (
+            "HY stress without full macro confirmation",
+            "HY spreads are elevated, but the macro confirmation is mixed. Treat weakness as selective rather than systemic: BB carry can be attractive, while weak single-B and CCC require tighter underwriting.",  # noqa: E501
+            "#BA7517",
+            tags,
+        )
+    if hy_z <= -1.5 and ig_z <= -1.0 and not default_worsening:  # noqa: PLR2004
+        return (
+            "Credit looks rich: trim beta and wait for better entry",
+            "Spreads are compressed across the stack and defaults are not forcing a risk premium. Avoid chasing incremental yield; prefer benchmark weight or up-in-quality positioning.",
+            "#185FA5",
+            tags,
+        )
+    if hy_pct > 50 and ig_pct < 40:  # noqa: PLR2004
+        return (
+            "IG-HY divergence: market is repricing credit quality",
+            "IG remains tight while HY trades wider than median. This favors relative-value work around the BBB-BB boundary rather than a broad beta call.",
+            "#BA7517",
+            tags,
+        )
+    if quality_improving and default_improving:
+        return (
+            "Fundamentals easing: carry environment improving",
+            "Quality dispersion and default rates are moving in the right direction. Maintain carry exposure, with a bias to credits where spread still pays for downgrade risk.",
+            "#3B6D11",
+            tags,
+        )
+    return (
+        "Credit markets in normal range",
+        "Spreads, dispersion, and default trends are not sending a strong tactical signal. Stay close to benchmark risk and use issuer-level work for alpha.",
+        "#3B6D11",
+        tags,
+    )
 
 
 # ==========================================

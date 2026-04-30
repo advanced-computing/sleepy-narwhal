@@ -15,6 +15,7 @@ import pandas as pd
 import pytest
 
 from data_utils import (
+    clean_oas_to_basis_points,
     compute_spread_zscore,
     regime_flag,
     yoy_change,
@@ -54,6 +55,50 @@ def yoy_df():
 
 
 # ── Test 1: compute_spread_zscore ─────────────────────────────────────────
+
+
+class TestCleanOasToBasisPoints:
+    def test_converts_long_oas_values_to_bp(self):
+        df = pd.DataFrame(
+            {
+                "series_key": ["ig_oas", "hy_oas", "ig_yield"],
+                "value": [0.81, 3.25, 5.12],
+            }
+        )
+
+        result = clean_oas_to_basis_points(df)
+
+        assert result.loc[0, "value"] == pytest.approx(81.0)
+        assert result.loc[1, "value"] == pytest.approx(325.0)
+        assert result.loc[2, "value"] == pytest.approx(5.12)
+
+    def test_does_not_double_convert_existing_bp_values(self):
+        df = pd.DataFrame(
+            {
+                "series_key": ["ig_oas", "hy_oas"],
+                "value": [81.0, 325.0],
+            }
+        )
+
+        result = clean_oas_to_basis_points(df)
+
+        assert result["value"].tolist() == [81.0, 325.0]
+
+    def test_converts_wide_oas_columns_only(self):
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2024-01-01"]),
+                "ig_oas": [0.81],
+                "hy_oas": [3.25],
+                "ig_yield": [5.12],
+            }
+        )
+
+        result = clean_oas_to_basis_points(df)
+
+        assert result.loc[0, "ig_oas"] == pytest.approx(81.0)
+        assert result.loc[0, "hy_oas"] == pytest.approx(325.0)
+        assert result.loc[0, "ig_yield"] == pytest.approx(5.12)
 
 
 class TestComputeSpreadZscore:

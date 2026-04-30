@@ -1,133 +1,234 @@
 # US Corporate Credit Risk Dashboard
 
-## Project structure
+An interactive Streamlit dashboard for monitoring US corporate credit risk across investment-grade (IG) and high-yield (HY) markets. The app is designed for students learning credit analysis and for junior credit analysts who need a fast, structured way to answer:
 
+> Are current corporate credit conditions normal, rich, or stressed, and what evidence supports that view?
+
+The dashboard combines FRED market data, SIFMA market-structure data, and S&P default-rate data into a multi-page analytical workflow. It moves from a five-second executive signal to deeper spread-regime, rating-curve, macro-risk, and strategy views.
+
+## Target Users
+
+The project was repositioned from a general data-visualization idea into a credit-analysis tool with a clearer audience.
+
+- Students can use it to learn how credit analysts read spreads, rating buckets, default rates, and market regimes.
+- Credit analysts can use it as a quick briefing tool before deeper issuer-level research.
+- Instructors or presenters can use it to explain how raw market data becomes an analytical signal.
+
+## App Logic
+
+The app follows a simple credit-analysis flow:
+
+1. **Executive Dashboard** (`app.py`)
+   - Shows the latest IG OAS, HY OAS, HY-IG spread, HY z-score, and regime label.
+   - Generates a rule-based strategy signal from spread levels, percentiles, quality dispersion, and default trends.
+   - Gives the user a quick answer before they open the deeper pages.
+
+2. **Spread Regime** (`pages/1_spread_regime.py`)
+   - Compares IG and HY OAS against history.
+   - Uses rolling z-scores and trailing percentile ranks to classify whether spreads are tight, normal, or stressed.
+   - Adds NBER recession shading so the user can compare current conditions with past stress periods.
+
+3. **Credit Curve** (`pages/2_credit_curve.py`)
+   - Breaks spreads down by rating bucket from AAA to CCC.
+   - Compares current rating-level OAS with five-year averages.
+   - Connects current spread compensation with historical cumulative default rates.
+
+4. **Spread vs Macro** (`pages/5_spreads_risk.py`)
+   - Tests whether spread widening is supported by macro or fundamental deterioration.
+   - Compares HY OAS with speculative-grade default rates.
+   - Tracks the Baa-Aaa spread as a quality-dispersion and credit-stress indicator.
+
+5. **Strategy Outlook** (`pages/6_strategy_outlook.py`)
+   - Synthesizes spread levels, z-scores, percentiles, yields, and default-risk data.
+   - Produces a rule-based market view for IG and HY credit positioning.
+
+## Project Structure
+
+```text
+sleepy-narwhal/
+|-- app.py                         # Streamlit home page / executive dashboard
+|-- data_load.py                   # FRED + CSV ingestion into BigQuery
+|-- data_utils.py                  # BigQuery query helpers and calculation functions
+|-- DATA_LOADING.md                # Detailed data-loading and performance notes
+|-- requirements.txt               # Python dependencies
+|-- test_data_utils.py             # Unit tests for utility calculations
+|-- data/
+|   |-- avg_cumulative_default_rates.csv
+|   |-- corp_issuance_annual.csv
+|   |-- corp_issuance_monthly.csv
+|   |-- global_fi_outstanding.csv
+|   |-- moodys_default_rates.csv
+|   |-- us_fi_outstanding.csv
+|-- pages/
+|   |-- 1_spread_regime.py
+|   |-- 2_credit_curve.py
+|   |-- 5_spreads_risk.py
+|   |-- 6_strategy_outlook.py
+|-- utils/
+|   |-- perf.py                    # Page load timing and optional profiling helpers
+|   |-- style.py                   # Shared CSS and custom sidebar navigation
 ```
-dashboard/
-├── app.py                              # Home page (Streamlit entry point)
-├── data_load.py                        # BigQuery ingestion
-├── data_utils.py                       # All BQ queries + calculation functions
-├── requirements.txt
-├── data/                               # Static CSVs
-│   ├── global_fi_outstanding.csv
-│   ├── us_fi_outstanding.csv
-│   ├── corp_issuance_monthly.csv
-│   ├── corp_issuance_annual.csv
-│   ├── moodys_default_rates.csv
-│   └── avg_cumulative_default_rates.csv
-└── pages/
-    ├── 1_market_overview.py
-    ├── 2_credit_ratings.py
-    └── 5_spreads_risk.py
-```
+
+## Data Pipeline
+
+The data pipeline separates live market time series from small static reference datasets.
+
+### 1. FRED API to BigQuery
+
+`data_load.py` pulls daily and quarterly FRED series into BigQuery:
+
+- IG and HY option-adjusted spreads (OAS)
+- IG and HY effective yields
+- Rating-level OAS from AAA through CCC
+- Moody's Aaa and Baa corporate bond yields
+- Fixed-income outstanding series from Fed Z.1 data
+
+FRED tables use incremental loading. Each run checks the latest stored date in BigQuery and only appends new observations.
+
+### 2. Static CSVs to BigQuery
+
+Small curated CSV files in `data/` are uploaded with full table replacement. This keeps BigQuery synchronized with the repo version of each file.
+
+Static datasets include:
+
+- Global fixed-income outstanding by region
+- US fixed-income market structure
+- Corporate issuance
+- Annual speculative-grade and investment-grade default rates
+- Average cumulative default rates by rating bucket
+
+### 3. Streamlit Reads from BigQuery
+
+The Streamlit app does not call FRED directly. Pages read prepared data from BigQuery through helper functions in `data_utils.py`, which makes page loads more predictable and avoids API dependency during user sessions.
+
+## Main Functions
+
+### Data Access
+
+- `_bq_client()` creates an authenticated BigQuery client for either Streamlit Cloud secrets or local Google Application Default Credentials.
+- `_bq(query)` runs a SQL query and returns a pandas DataFrame.
+- `_tbl(name)` builds fully qualified BigQuery table names.
+- `get_ig_hy_oas_history()` returns headline IG/HY OAS and yield history in wide format.
+- `get_rating_oas_latest()` returns the latest OAS value for each rating bucket.
+- `get_rating_oas_history()` returns rating-level OAS history.
+- `get_baa_aaa_yield_history()` returns Aaa and Baa yields and computes the Baa-Aaa spread.
+- `get_moodys_defaults()` returns annual default-rate data.
+- `get_avg_cumulative_default_rates()` returns cumulative default-rate assumptions by rating.
+
+### Calculations
+
+- `compute_spread_zscore(series, window=252)` calculates a rolling one-year z-score.
+- `compute_spread_percentile(series, lookback_years=10)` calculates the latest spread percentile versus trailing history.
+- `compute_rolling_vol(series, window=30)` calculates annualized rolling volatility of spread changes.
+- `yoy_change(df, col)` calculates year-over-year percentage change for a selected column.
+- `regime_flag(percentile)` converts a spread percentile into a regime label and color.
+- `generate_outlook(...)` combines valuation, spread dispersion, and default trends into a rule-based strategy signal.
+
+### UI and Performance
+
+- `inject_css()` applies the shared visual system.
+- `render_sidebar()` creates consistent navigation across pages.
+- `display_load_time()` shows render time at the bottom of each page.
+- `profile_page()` can be used during development to diagnose slow code paths with `cProfile`.
+
+## Performance Optimizations
+
+The project includes several optimizations to improve speed, code clarity, and user experience:
+
+- **SQL pushdown:** Filtering, latest-value selection, and simple calculations happen in BigQuery before data reaches pandas.
+- **Streamlit caching:** Page-level `@st.cache_data` wrappers reduce repeated BigQuery calls during user navigation.
+- **Incremental ingestion:** FRED time series append only new rows instead of reloading full history every day.
+- **Wide-format pivots:** Query helpers return analysis-ready DataFrames so page code stays focused on charts and interpretation.
+- **Shared styling:** Common CSS and sidebar logic live in `utils/style.py`, which keeps page files cleaner and visually consistent.
+- **Load-time measurement:** `display_load_time()` makes performance visible during development and presentation.
 
 ## Setup
 
+Install dependencies:
+
 ```bash
 pip install -r requirements.txt
-cp .env.example .env          # fill in FRED_API_KEY and GCP_PROJECT_ID
+```
+
+Authenticate with Google Cloud for local development:
+
+```bash
 gcloud auth application-default login
-bq mk --dataset sipa-adv-c-sleepy-narwhal:credit_risk_data
+```
+
+Load or refresh data:
+
+```bash
 python data_load.py
+```
+
+Run the Streamlit app:
+
+```bash
 streamlit run app.py
 ```
 
----
+## BigQuery Tables
 
-## BigQuery tables
+Dataset: `sipa-adv-c-sleepy-narwhal.credit_risk_data`
 
-| Table | Source file / API | Frequency |
+| Table | Source | Loading strategy |
 |---|---|---|
-| `fred_daily_raw` | FRED API (13 OAS + yield series) | Daily — GitHub Actions |
-| `fred_quarterly_raw` | FRED API (5 Z.1 outstanding series) | Daily — GitHub Actions |
-| `static_global_fi` | `data/global_fi_outstanding.csv` | Annually (July) |
-| `static_us_fi_structure` | `data/us_fi_outstanding.csv` | Quarterly |
-| `static_corp_issuance_monthly` | `data/corp_issuance_monthly.csv` | Monthly |
-| `static_corp_issuance_annual` | `data/corp_issuance_annual.csv` | Annually |
-| `static_default_rates` | `data/moodys_default_rates.csv` | Annually (March) |
-| `static_avg_cumulative_default_rates` | `data/avg_cumulative_default_rates.csv` | Annually (March) |
+| `fred_daily_raw` | FRED daily OAS and yield series | Incremental append |
+| `fred_quarterly_raw` | FRED quarterly outstanding series | Incremental append |
+| `static_global_fi` | `data/global_fi_outstanding.csv` | Full replace |
+| `static_us_fi_structure` | `data/us_fi_outstanding.csv` | Full replace |
+| `static_corp_issuance_monthly` | `data/corp_issuance_monthly.csv` | Full replace |
+| `static_corp_issuance_annual` | `data/corp_issuance_annual.csv` | Full replace |
+| `static_default_rates` | `data/moodys_default_rates.csv` | Full replace |
+| `static_avg_cumulative_default_rates` | `data/avg_cumulative_default_rates.csv` | Full replace |
 
----
+## Tests and Quality
 
-## Static CSV formats
+Run tests:
 
-| File | Source | URL | Columns | Notes |
-|---|---|---|---|---|
-| `global_fi_outstanding.csv` | SIFMA Fact Book Tab 1-09 | [sifma.org/fact-book](https://www.sifma.org/research/statistics/fact-book) | `year, us, eu, china, japan, uk, australia, canada, hk, singapore, switzerland, dm, em, total` | Values in $bn with thousand-separator commas — handled automatically |
-| `us_fi_outstanding.csv` | SIFMA US FI Statistics Tab 1 (Annual) | [sifma.org/us-fi-stats](https://www.sifma.org/research/statistics/us-fixed-income-securities-statistics) | Raw: `UST, MBS, Corporates, Munis, Agency, ABS, CP` → renamed on ingest | MBS and ABS are `n/a` from 2022 onward → stored as NaN, handled gracefully |
-| `corp_issuance_monthly.csv` | SIFMA Corp Bonds Tab 1 (Monthly) | [sifma.org/corp-bonds](https://www.sifma.org/research/statistics/us-corporate-bonds-statistics) | `date (YY-Mon), ig_issuance_bn, hy_issuance_bn` | Date `"25-Mar"` → parsed to `2025-03-01` automatically. Coverage: Mar 2025+ |
-| `corp_issuance_annual.csv` | SIFMA Corp Bonds Tab 1 (Annual) | [sifma.org/corp-bonds](https://www.sifma.org/research/statistics/us-corporate-bonds-statistics) | `year, ig_issuance_bn, hy_issuance_bn` | Coverage: 2015+. Values may have thousand-separator commas |
-| `moodys_default_rates.csv` | S&P Annual Default Study Table 1 | [PDF (public)](https://maalot.co.il/Publications/FTS20250331162126.pdf) | `year, sg_default_rate, ig_default_rate` | Annual rates 1981–2024. Despite the filename, source is S&P (not Moody's) |
-| `avg_cumulative_default_rates.csv` | S&P Annual Default Study Tables 7–8 | [PDF (public)](https://maalot.co.il/Publications/FTS20250331162126.pdf) | `rating, yr1, yr2, yr3, yr4, yr5, yr7, yr10, grade` | 1981–2024 issuer-weighted avg cumulative default rates by rating |
-
----
-
-## FRED API series
-
-All pulled automatically by `data_load.py`. Free key: https://fred.stlouisfed.org/docs/api/api_key.html
-
-| Key | Series ID | Description | Section |
-|---|---|---|---|
-| `ig_oas` | `BAMLC0A0CM` | IG OAS — ICE BofA US Corporate Index | §5 |
-| `hy_oas` | `BAMLH0A0HYM2` | HY OAS — ICE BofA HY Master II | §5 |
-| `ig_yield` | `BAMLC0A0CMEY` | IG Effective Yield | §5 |
-| `hy_yield` | `BAMLH0A0HYM2EY` | HY Effective Yield | §5 |
-| `aaa_oas` | `BAMLC0A1CAAA` | AAA IG OAS | §2 |
-| `aa_oas` | `BAMLC0A2CAA` | AA IG OAS | §2 |
-| `a_oas` | `BAMLC0A3CA` | A IG OAS | §2 |
-| `bbb_oas` | `BAMLC0A4CBBB` | BBB IG OAS | §2 |
-| `bb_oas` | `BAMLH0A1HYBB` | BB HY OAS | §2 |
-| `b_oas` | `BAMLH0A2HYB` | B HY OAS | §2 |
-| `ccc_oas` | `BAMLH0A3HYC` | CCC & Lower HY OAS | §2 |
-| `baa_yield` | `BAA` | Moody's Baa Corporate Bond Yield | §5 |
-| `aaa_yield` | `AAA` | Moody's Aaa Corporate Bond Yield | §5 |
-| `corp_outstanding` | `NCBDBIQ027S` | Nonfinancial Corp Debt Securities ($mn) | §1 |
-| `tsy_outstanding` | `GFDEBTN` | Federal Debt: Total Public Debt ($mn) | §1 |
-| `muni_outstanding` | `SLGSDODNS` | State & Local Govt Debt Securities ($mn) | §1 |
-| `agency_outstanding` | `FGSDODNS` | Federal Govt Debt Securities incl Agency ($mn) | §1 |
-
----
-
-## Streamlit secrets (deployed app)
-
-Settings → Secrets in Streamlit Community Cloud:
-
-```toml
-[gcp_service_account]
-type = "service_account"
-project_id = "sipa-adv-c-sleepy-narwhal"
-private_key_id = "..."
-private_key = "-----BEGIN RSA PRIVATE KEY-----\n..."
-client_email = "streamlit@sipa-adv-c-sleepy-narwhal.iam.gserviceaccount.com"
-client_id = "..."
+```bash
+pytest
 ```
 
----
+The test suite focuses on calculation helpers in `data_utils.py`, including z-scores, percentiles, rolling volatility, year-over-year change, regime classification, and outlook generation.
 
-## GitHub Actions (daily auto-ingestion)
+## Project Presentation Outline
 
-Create `.github/workflows/data_load.yml`:
+1. **Initial Proposal**
+   - Introduce the original project proposal.
+   - Reflect on the problems with the initial proposal:
+     - The dataset was chosen mainly because it seemed simple.
+     - The final project goal was not clearly defined.
 
-```yaml
-name: Daily data ingestion
-on:
-  schedule:
-    - cron: '0 6 * * *'
-  workflow_dispatch:
+2. **New Proposal**
+   - Explain the new proposal: a US corporate credit risk dashboard.
+   - Define the target user:
+     - Students learning credit analysis.
+     - Credit analysts.
+   - Analyze what credit analysts need and when they would use this tool.
 
-jobs:
-  ingest:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
-      - run: pip install -r requirements.txt
-      - run: python data_load.py
-        env:
-          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
-          GCP_PROJECT_ID: sipa-adv-c-sleepy-narwhal
-          GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.GCP_SA_KEY }}
-```
+3. **Live App Walkthrough**
+   - Walk through each page of the live app.
+   - Explain why each part exists.
+   - Explain how the pages connect to each other in the credit-analysis workflow.
 
-Add `FRED_API_KEY` and `GCP_SA_KEY` to GitHub → Settings → Secrets and variables → Actions.
+4. **Code Walkthrough**
+   - Walk through the project by file structure.
+   - Explain how the files are organized.
+   - Introduce the main functions:
+     - What each function does.
+     - How the functions work together.
+   - Show how the code logic supports the project goal.
+   - Explain the optimizations made in the project.
+   - Explain how these optimizations improve performance, including:
+     - Faster runtime.
+     - Clearer code structure.
+     - Better user experience.
+
+5. **What We Learned**
+   - Main takeaways:
+     - Set up a clear goal.
+     - Define the target user.
+     - The first version does not need to be perfect.
+     - Always polish and improve.
