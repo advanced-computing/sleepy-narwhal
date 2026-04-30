@@ -78,7 +78,7 @@ def clean_oas_to_basis_points(
 
     def _needs_bp_conversion(series: pd.Series) -> bool:
         clean = pd.to_numeric(series, errors="coerce").dropna()
-        return not clean.empty and clean.abs().median() < 25
+        return not clean.empty and clean.abs().median() < 25  # noqa: PLR2004
 
     if series_col in out.columns and value_col in out.columns:
         mask = out[series_col].isin(OAS_SERIES_KEYS)
